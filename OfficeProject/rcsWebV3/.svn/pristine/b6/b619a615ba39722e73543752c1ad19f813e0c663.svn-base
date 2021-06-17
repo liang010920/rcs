@@ -1,0 +1,347 @@
+<template>
+    <section class="image-resource resource-manage">
+        <el-form :inline="true" :model="params" size="small">
+            <el-form-item label="文档名称">
+                <el-input v-model="params.name" placeholder="搜索文档"></el-input>
+            </el-form-item>
+            <!--<el-form-item label="审核状态">-->
+            <!--<el-select v-model="params.checkStatus" placeholder="全部">-->
+            <!--<el-option label="全部" value=""></el-option>-->
+            <!--<el-option label="未审核" value="0"></el-option>-->
+            <!--<el-option label="审核通过" value="1"></el-option>-->
+            <!--<el-option label="审核失败" value="2"></el-option>-->
+            <!--<el-option label="审核中" value="3"></el-option>-->
+            <!--</el-select>-->
+            <!--</el-form-item>-->
+
+            <el-form-item>
+                <el-button type="primary" @click="search" icon="el-icon-search">查询</el-button>
+                <el-button type="primary" @click="dialogVisible=true;dialogTitle='新建文档';dialogForm={groupId:catalogIdSelect}"
+                    v-if="scene==1">新建文档</el-button>
+            </el-form-item>
+
+        </el-form>
+
+        <el-row class="groupOverflow">
+            <el-col :span="scene == 1 ? 18 : 24">
+                <el-button size="mini" round :type="activeGroupType==-1?'primary':''" @click="switchGroup(-1)">全部 ({{selectAllGroupIndex}})</el-button>
+                <el-button v-for="(group,index) in groupList" size="mini" round :type="activeGroupType==index?'primary':''"
+                    @click="switchGroup(index)">{{group.name}} ({{group.itemCount}})</el-button>
+            </el-col>
+            <el-col :span="scene == 1 ? 6 : 0" style="text-align: right" class="clearSpacing">
+                <el-button v-if="scene==1" size="mini" round v-show="activeGroupType!=-1&&activeGroupType!=0" @click="editGroup(groupList[activeGroupType])">编辑分组</el-button>
+                <el-button v-if="scene==1" size="mini" round class="mr10" v-show="activeGroupType!=-1&&activeGroupType!=0"
+                    @click="deleteGroup(groupList[activeGroupType])">删除分组</el-button>
+
+                <el-popover v-if="scene==1" placement="bottom" width="200" v-model="popVisible">
+                    <!--<div >-->
+                    <!--新建分组-->
+                    <!--</div>-->
+                    <div style="padding: 10px 0 15px 0">
+                        <el-input size="mini" v-model="group.name" placeholder="请输入分组名称"></el-input>
+                    </div>
+
+                    <div style="text-align: right; margin: 0">
+                        <el-button size="mini" type="text" @click="popVisible = false">取消</el-button>
+                        <el-button type="primary" size="mini" @click="saveGroup">确定</el-button>
+                    </div>
+                    <el-button type="primary" size="mini" slot="reference" round>新建分组</el-button>
+                </el-popover>
+            </el-col>
+        </el-row>
+
+        <el-row :gutter="15" style="margin-top: 10px" class="resourceManageHeight" :style="{height:resourceManageHeight}">
+            <el-col :span="6" v-for="(resource, index) in resourceList" :key="'res'+index" style="margin-bottom: 15px">
+                <el-card :body-style="{ padding: '15px'}" @click.native="selectRow(resource)">
+                    <i class="el-icon-folder" style="font-size: 30px;margin-bottom: 5px"></i>
+                    <div class="item-desc">
+                        <h3 :title="resource.name">{{resource.name}}</h3>
+                        <div class="bottom theme-color-gray">
+                            <span>更新于 {{resource.modifyTime}}</span>
+                            <span class="control">
+                                <i class="el-icon-edit" v-if="scene==1" @click="editResource(resource)"></i>
+                                <a @click.stop="previewResource(resource)" :href="resource.file | imgPath('file')"
+                                    :download="resource.name"> <i class="el-icon-view"></i></a>
+
+                                <el-popconfirm v-if="scene==1" class="res-pop-confirm" title="确定删除吗？" @onConfirm="deleteResource(resource)">
+                                    <i class="el-icon-delete" slot="reference"></i>
+                                </el-popconfirm>
+                            </span>
+                        </div>
+                    </div>
+                    <!--<div class="check-status" v-if="scene==1">-->
+                    <!--<span>状态：{{checkNames[resource.checkStatus]}}</span>-->
+                    <!--<span v-if="resource.checkStatus==0||resource.checkStatus==2" class="check" @click="checkResource(resource)">审核</span>-->
+                    <!--</div>-->
+                </el-card>
+            </el-col>
+        </el-row>
+
+
+        <!-- dialog start-->
+        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="35%" center :close-on-click-modal="false">
+
+            <el-form ref="form" :model="dialogForm" label-width="80px" size="small">
+
+                <el-form-item label="内容" class="is-required">
+
+                    <upload-file-base v-if="dialogVisible" ref="fileUpload" accept="*/*" :limit="1" folderType="file"
+                        :fileSize="500" tip="文档大小不超过500M"></upload-file-base>
+
+                </el-form-item>
+                <el-form-item label="名称" class="is-required">
+                    <el-input v-model="dialogForm.name" placeholder="请输入名称" maxlength="25" show-word-limit></el-input>
+                </el-form-item>
+                <el-form-item label="分组" class="is-required">
+                    <el-select v-model="dialogForm.groupId" placeholder="请选择分组">
+                        <el-option v-for="group in groupList" :label="group.name" :value="group.id"></el-option>
+                        <!--<el-option label="分组一" value="beijing"></el-option>-->
+                    </el-select>
+                </el-form-item>
+            </el-form>
+
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="dialogVisible = false" size="small">取 消</el-button>
+                <el-button type="primary" size="small" @click="saveResource">确 定</el-button>
+            </span>
+        </el-dialog>
+        <!-- dialog end-->
+
+
+        <!-- preview dialog start-->
+        <el-dialog title="预览" :visible.sync="previewDialogVisible" width="600px" center :append-to-body="true"
+            :close-on-click-modal="false">
+
+            <div>
+                <el-card :body-style="{ padding: '15px'}">
+                    <el-image style="width: 100%;margin-bottom: 10px;" :src="preResource.image | imgPath('image')" fit="contain"></el-image>
+                    <div class="item-desc">
+                        <h3>{{preResource.name}}</h3>
+                        <div class="bottom theme-color-gray">
+                            <span>更新于 {{preResource.modifyTime}}</span>
+                        </div>
+                    </div>
+                </el-card>
+            </div>
+
+
+        </el-dialog>
+        <!-- preview dialog end-->
+
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="page.curPage"
+                :page-sizes="[12, 18, 24, 30]" :page-size="page.size" layout="total, sizes, prev, pager, next, jumper"
+                :total="page.total">
+            </el-pagination>
+        </div>
+
+    </section>
+</template>
+
+<script>
+    import UploadFileBase from '../../components/UploadFileBase'
+    export default {
+        name: "ImageResource",
+        components: {
+            UploadFileBase
+        },
+        data() {
+            return {
+                page: {
+                    curPage: 1,
+                    size: 12,
+                    total: 0
+                }, // 传入后台参数
+                params: {
+                    name: '',
+                    groupType: 'RESOURCE_DOCMENT'
+                },
+                popVisible: false,
+                dialogVisible: false,
+                dialogForm: {},
+                activeGroupType: '-1',
+                dialogTitle: '新建图片',
+                previewDialogVisible: false,
+                group: {},
+                groupList: [],
+                totalGroup: 0,
+                resourceList: [],
+                preResource: {},
+                currentGroup: '', // 当前选中的组
+                scene: 1,
+                checkNames: this.resParent.checkNames,
+                catalogIdSelect: 0,
+                resourceManageHeight: '',
+                selectAllGroupIndex: 0,
+            }
+        },
+        inject: ['resParent'],
+        methods: {
+            selectRow(resource) {
+                this.resParent.$emit('selectRow', resource)
+            },
+            handleCurrentChange: function(currentPage) { //改变当前页
+                this.page.curPage = currentPage
+                this.loadData()
+            },
+            handleSizeChange: function(size) { //改变页面size
+                this.page.size = size;
+                this.loadData()
+            },
+            search() {
+                this.loadData()
+            },
+            switchGroup(type) {
+                for (var i = 0; i < this.groupList.length; i++) {
+                    if (i == type) {
+                        this.catalogIdSelect = this.groupList[i].id
+                        break;
+                    } else {
+                        this.catalogIdSelect = this.groupList[0].id
+                    }
+                }
+                this.page.curPage = 1
+                this.activeGroupType = type
+                this.currentGroup = this.groupList[type]
+                this.loadData()
+            },
+            deleteGroup(group) {
+                this.resParent.deleteGroup(group.id, this.params.groupType, val => {
+                    this.getGroupList()
+                    if (val) {
+                        this.activeGroupType = -1
+                        this.currentGroup.id = 0
+                        this.loadData()
+                    }
+                })
+
+            },
+            checkResource(resource) {
+                this.resParent.sendVerifyResource(resource.id, () => this.loadData())
+            },
+            editGroup(group) {
+                group.groupType = this.params.groupType
+                this.resParent.editGroup(group, () => this.getGroupList())
+            },
+            saveGroup() {
+                this.group.groupType = this.params.groupType
+                this.resParent.saveGroup(this.group, () => {
+                    this.popVisible = false;
+                    this.getGroupList()
+                })
+            },
+            getGroupList() {
+                this.resParent.getGroupList(this.params.groupType, val => {
+                    this.groupList = val
+                    for (var i = 0; i < this.groupList.length; i++) {
+                        if (this.groupList[i].name == '未分组') {
+                            this.catalogIdSelect = this.groupList[i].id
+                        }
+                    }
+                    this.totalGroup = this.groupList.reduce((pre, next) => pre + next.resourceCount, 0)
+                })
+            },
+            loadData() {
+                let param = {
+                    curPage: this.page.curPage,
+                    size: this.page.size
+                }
+                Object.assign(param, this.params)
+                if (this.currentGroup) {
+                    param.catalogId = this.currentGroup.id
+                }
+
+                this.resParent.getResourceList(param, data => {
+                    this.resourceList = data.records
+                    this.resourceList.forEach(val => {
+                        let list = JSON.parse(val.content)
+                        val.image = list[0].image
+                        val.file = list[0].file
+                    })
+                    this.page.total = data.total
+                })
+            },
+            saveResource() {
+                console.log('this.dialogForm:', this.dialogForm)
+                console.log('this.$refs:', this.$refs)
+                this.resParent.onSubmit(this.dialogForm, this.$refs, this.params.groupType, () => {
+                    this.dialogVisible = false;
+                    this.getGroupList();
+                    this.loadData()
+                    this.resParent.getGroupItemCount(this.params.groupType, val => {
+                        this.selectAllGroupIndex = val
+                    })
+                })
+            },
+            editResource(resource) {
+                this.dialogVisible = true
+                this.dialogTitle = '编辑图片'
+                this.resParent.initData(resource.id, this.$refs, val => this.dialogForm = val)
+            },
+            previewResource(resource) {
+
+            },
+            deleteResource(resource) {
+                console.log(resource)
+                this.resParent.deleteResource(resource.id, () => {
+                    this.getGroupList();
+                    this.loadData()
+                    this.resParent.getGroupItemCount(this.params.groupType, val => {
+                        this.selectAllGroupIndex = val
+                    })
+                })
+            },
+        },
+        mounted() {
+            this.resParent.getGroupItemCount(this.params.groupType, val => {
+                this.selectAllGroupIndex = val
+            })
+            this.getGroupList()
+            this.loadData()
+            this.scene = this.resParent.scene
+            this.resourceManageHeight = document.documentElement.clientHeight - 50 - 84 - 40 - 55 - 51 - 28 - 47 - 10 +
+                'px'
+        }
+    }
+</script>
+
+<style scoped lang="less">
+    .image-resource {
+        .item-desc {
+            h3 {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: -webkit-box;
+                -webkit-line-clamp: 1;
+                -webkit-box-orient: vertical;
+            }
+
+            .bottom {
+                margin-top: 10px;
+            }
+        }
+
+        .groupOverflow {
+            height: 28px;
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 4px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+    }
+</style>

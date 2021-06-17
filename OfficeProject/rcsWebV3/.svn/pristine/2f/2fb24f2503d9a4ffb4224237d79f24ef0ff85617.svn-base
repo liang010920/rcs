@@ -1,0 +1,171 @@
+<template>
+    <section class="resource-check-video resource-check">
+        <!-- <el-button @click="delResourceCheck" size="mini" style="margin-bottom: 10px">删除</el-button> -->
+        <el-table :data="resourceImageList" fit v-loading="" size="small" border :header-cell-style="{'background-color': '#fafafa'}"
+            @selection-change="handleSelectionChange">
+           <el-table-column type="selection" width="55" align="center">
+           </el-table-column>
+           <el-table-column prop="name" label="资源名称" align="center"></el-table-column>
+           <el-table-column prop="" label="缩略图" align="center">
+               <template slot-scope="scope">
+                   <el-image :src="imageRootPath+scope.row.thumbnail" style="width: 100px; height: 70px"></el-image>
+               </template>
+           </el-table-column>
+           <el-table-column prop="checkStatus" label="审核状态" align="center">
+               <template slot-scope="scope">
+                   <div v-if="scope.row.checkStatus == 0">待审核</div>
+                   <div v-if="scope.row.checkStatus == 1">审核通过</div>
+                   <div v-if="scope.row.checkStatus == 2">审核失败</div>
+                   <div v-if="scope.row.checkStatus == 3">审核中</div>
+               </template>
+           </el-table-column>
+
+           <el-table-column prop="isExpire" label="是否过期" align="center">
+               <template slot-scope="scope">
+                   <div v-if="scope.row.isExpire == 0">上传中</div>
+                   <div v-if="scope.row.isExpire == 1">有效</div>
+                   <div v-if="scope.row.isExpire == 2">过期</div>
+               </template>
+           </el-table-column>
+           <el-table-column prop="" label="审核内容" align="center">
+               <template slot-scope="scope">
+                   <el-button @click="previewClick(scope.row)" type="primary">预览</el-button>
+               </template>
+           </el-table-column>
+        </el-table>
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="page.current"
+                :page-sizes="[10, 20, 50, 200, 500]" :page-size="page.size" layout="total, sizes, prev, pager, next, jumper"
+                :total="page.total">
+            </el-pagination>
+        </div>
+
+        <!-- 预览 start -->
+        <el-dialog title="预览" :visible.sync="previewDialogVisible" width="40%" center :close-on-click-modal="false">
+            <pre-view :row='previewRow' v-if="previewDialogVisible"></pre-view>
+        </el-dialog>
+        <!-- 预览 end -->
+    </section>
+</template>
+
+<script>
+    import {
+        imageRootPath
+    } from '../../config/config.js'
+    import PreView from '../components/Preview/index.vue'
+    export default {
+        components: {
+            PreView
+        },
+        data() {
+            return {
+                param: {
+                    groupType: 'RESOURCE_VIDEO'
+                },
+                page: { //页码区
+                    current: 1,
+                    size: 10,
+                    total: 0,
+                },
+                tableLoading: false,
+                resourceImageList: [],
+                delListId: [],
+                previewDialogVisible:false,
+                imageRootPath
+            }
+        },
+        inject: ['resParent'],
+        methods: {
+            previewClick(row) {
+                this.previewDialogVisible = true
+                row.type = 'TEMPLATE_VIDEO'
+                row.content = row.content.substr(1)
+                row.content = row.content.substring(0,row.content.length-1)
+                this.previewRow = row
+            },
+            //选择列表数据
+            handleSelectionChange(val) {
+                this.delListId = val;
+            },
+            //删除
+            delResourceCheck() {
+                if (this.delListId.length > 0) {
+                    let t_this = this
+                    let tips = "是否确认删除？";
+                    this.$confirm(tips, '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        let delIds = this.delListId.map(val => val.id)
+                        let param = {ids:delIds.join()}
+                        t_this.resParent.delResourceCheck(param, res => {
+                            t_this.load();
+                        })
+                    })
+                } else {
+                    this.$message.warning('没有选择数据')
+                }
+            },
+            handleCurrentChange(currentPage) { //改变当前页
+                let _self = this
+                _self.page.curPage = currentPage
+                _self.load()
+            },
+            handleSizeChange(size) { //改变页面size
+                let _self = this
+                _self.page.size = size;
+                _self.load()
+            },
+            load() { //加载列表
+                Object.assign(this.resParent.search, this.page)
+                this.resParent.getResourceCheckList(this.resParent.search, res => {
+                    this.resourceImageList = res.data.records
+                    this.page.total = res.data.total
+                })
+            }
+        },
+        mounted() {
+            let tableHeight = document.documentElement.clientHeight - 50 - 50 - 40 - 55 -
+                51 - 60 - 47 +
+                'px'
+            document.getElementsByClassName('el-table__body-wrapper')[2].style.height = tableHeight
+        },
+        activated() {
+            let tableHeight = document.documentElement.clientHeight - 50 - 50 - 40 - 55 -
+                51 - 60 - 47 +
+                'px'
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = tableHeight
+            this.load()
+        }
+    }
+</script>
+
+<style lang="less">
+    .resource-check-video {
+        .block {
+            margin-top: 10px;
+        }
+        .el-table__body-wrapper {
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+    }
+</style>

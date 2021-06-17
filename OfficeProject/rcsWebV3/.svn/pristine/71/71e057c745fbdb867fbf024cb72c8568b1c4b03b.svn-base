@@ -1,0 +1,72 @@
+<template>
+    <section class="app-main-wrap">
+        <div class="app-main">
+            <transition mode="out-in">
+                <keep-alive>
+                    <router-view :key="key" />
+                </keep-alive>
+            </transition>
+        </div>
+
+        <!-- <div class="footer" id="app-footer" >
+            <p></p>
+        </div> -->
+    </section>
+</template>
+
+<script>
+    export default {
+        name: 'AppMain',
+        data:{
+            scrollHeight:'' ,//高度设置
+        },
+        computed: {
+            cachedViews() {
+               return this.$store.state.tagsView.cachedViews
+            },
+            key() {
+               return this.$route.fullPath
+            }
+        },
+        mounted() {
+            this.scrollHeight = document.documentElement.clientHeight - 50 - 50 + 'px'
+            document.getElementsByClassName('app-main-wrap')[0].style.height = this.scrollHeight
+            document.getElementsByClassName('app-main-wrap')[0].style.overflow = 'auto'
+        }
+    }
+</script>
+
+<style lang="less">
+    .app-main-wrap{
+        .app-main {
+            /*84 = navbar + tags-view = 50 +34 */
+            min-height: calc(~'100vh - 165px');
+            position: relative;
+            overflow: hidden;
+
+        }
+        .footer{
+            width: 100%;
+            padding-top: 15px;
+            padding-bottom: 15px;
+            text-align: center;
+        }
+        &::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            border-radius: 10px;
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        &::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            border-radius: 0;
+            background: rgba(0, 0, 0, 0.1);
+        }
+    }
+
+</style>

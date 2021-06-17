@@ -1,0 +1,379 @@
+<template>
+    <div id="app">
+        <!--<loading v-model="isLoading"></loading>-->
+        <div v-loading.fullscreen.lock="isLoading"></div>
+        <router-view v-if="isRouterAlive"></router-view>
+    </div>
+</template>
+
+<script>
+    import Vue from 'vue'
+    //    import {Loading} from 'vux'
+    import {
+        mapState
+    } from 'vuex'
+
+    export default {
+        name: 'app',
+        components: {
+            //            Loading
+        },
+        provide() { //父组件中通过provide来提供变量，在子组件中通过inject来注入变量。
+            return {
+                reload: this.reload,
+            }
+        },
+        data() {
+            return {
+                isRouterAlive: true ,//控制视图是否显示的变量
+
+            }
+        },
+        methods: {
+            reload() {
+                this.isRouterAlive = false; //先关闭，
+                this.$nextTick(function() {
+                    this.isRouterAlive = true; //再打开
+                })
+            },
+        },
+        computed: {
+            ...mapState({
+                isLoading: state => state.app.isLoading
+            })
+        },
+        mounted() {
+
+        },
+
+    }
+</script>
+
+<style lang="less">
+    @import 'assets/css/reset.css';
+
+    .el-range-separator {
+        width: 18px !important;
+    }
+
+    label{
+        margin-bottom: 0px !important;
+    }
+
+    .el-dropdown-menu{
+        padding: 0 !important;
+    }
+
+    //表格
+    div.el-table{
+        font-size: 14px;
+        border:0px;
+        th{
+            height: 60px;
+            border: 0px;
+            font-weight: bold;
+            color: #333;
+        }
+        .el-table__row{
+            td{
+                border-right: 0;
+                padding: 15px 0;
+                // color: #666;
+            }
+        }
+        .el-table__body-wrapper {
+            overflow: hidden;
+            &:hover{
+                overflow: auto;
+            }
+        
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+        
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+        
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+
+    }
+    .el-table::before{
+        height: 0 !important;
+    }
+    .el-table--border::after, .el-table--group::after{
+        width: 0 !important;
+    }
+
+
+
+    //资源管理内容高度滚动条
+    .resourceManageHeight{
+        overflow: auto;
+        &::-webkit-scrollbar {
+            width: 4px;
+            height: 0px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            border-radius: 10px;
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        &::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            border-radius: 0;
+            background: rgba(0, 0, 0, 0.1);
+        }
+    }
+
+    .dialogCenter{
+        .el-dialog{
+            margin-top:20vh !important;
+            overflow: hidden;
+        }
+    }
+
+    .templateManageHeight{
+        overflow: auto;
+        &::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            border-radius: 10px;
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        &::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            border-radius: 0;
+            background: rgba(0, 0, 0, 0.1);
+        }
+    }
+
+    .wrap-container {
+        margin: 0 auto;
+        padding: 20px 50px;
+        /*border: 1px solid #ddd;*/
+    }
+
+    .title {
+        font-weight: 400;
+        color: #66b1ff;
+        font-size: 16px;
+        margin: 12px 0;
+    }
+
+    .editCustomer{
+        .el-dialog__body{
+            padding:10px 20px !important;
+            padding-bottom: 0px !important;
+        }
+    }
+    .reset{
+        .el-dialog__body {
+            height: auto;
+        }
+    }
+
+    .ziYuanHeight{
+        .el-dialog{
+            margin-top:4vh !important;
+            height:92%;
+            overflow: hidden;
+            .el-dialog__body {
+                height:92%;
+                overflow: auto;
+                padding:0;
+            }
+        }
+    }
+
+    .mmsTaskManageHeight{
+        .el-dialog{
+            margin-top:3vh !important;
+            height:94%;
+            overflow: hidden;
+            .el-dialog__body {
+                overflow: auto;
+                padding:0;
+                &::-webkit-scrollbar {
+                    width: 4px;
+                    height: 4px;
+                }
+
+                &::-webkit-scrollbar-thumb {
+                    border-radius: 10px;
+                    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                    background: rgba(0, 0, 0, 0.2);
+                }
+
+                &::-webkit-scrollbar-track {
+                    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                    border-radius: 0;
+                    background: rgba(0, 0, 0, 0.1);
+                }
+            }
+        }
+    }
+
+    .checkHeight{
+        .el-dialog{
+            margin-top:1vh !important;
+            height:98%;
+            overflow: hidden;
+            .el-dialog__body {
+                height: 98%;
+                overflow: auto;
+                padding:0;
+                padding-bottom:40px;
+            }
+        }
+    }
+
+    .el-dialog__header{
+        text-align: left;
+    }
+
+    .el-dialog--center .el-dialog__footer {
+        text-align: right ;
+    }
+
+    // .el-table__body-wrapper {
+    //     overflow: auto !important;
+    //     position: static !important;
+    // }
+
+    //滚动条样式
+    .el-dialog__body::-webkit-scrollbar {
+        width: 4px;
+        /*height: 4px;*/
+    }
+
+    .el-dialog__body::-webkit-scrollbar-thumb {
+        border-radius: 10px;
+        -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    .el-dialog__body::-webkit-scrollbar-track {
+        -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+        border-radius: 0;
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .title:before {
+        display: inline-block;
+        height: 15px;
+        border-left: 4px solid #66b1ff;
+        content: "";
+        vertical-align: -2px;
+        margin-right: 5px;
+    }
+
+    .page-wrap {
+        margin-top: 15px;
+        text-align: center;
+    }
+
+    .o-webkit-line2 {
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        display: -webkit-box;
+        overflow: hidden;
+        word-break: break-all;
+    }
+
+    .o-webkit-line3 {
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        display: -webkit-box;
+        overflow: hidden;
+        word-break: break-all;
+    }
+
+    .scrollbar::-webkit-scrollbar {
+        /*滚动条尺寸*/
+        width: 12px;
+    }
+
+    .scrollbar::-webkit-scrollbar-thumb {
+        /*滚动条里面小方块*/
+        border-radius: 5px;
+        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+        background: #e1e1e1;
+    }
+
+    .scrollbar::-webkit-scrollbar-track {
+        /*滚动条里面轨道*/
+        box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+        background: #f1f1f1;
+    }
+
+    /*下载上传按钮*/
+    .file-wrap {
+        position: relative;
+        overflow: hidden;
+
+        .seat {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+    }
+
+
+    /*主题色*/
+    .theme-color {
+        color: #409eff;
+    }
+
+    .theme-color-gray {
+        color: #999999;
+    }
+
+    .theme-color-green {
+        color: #13ce66;
+    }
+
+    .theme-color-blue {
+        color: #409eff;
+    }
+
+    .theme-background {
+        color: white;
+        background: #409eff;
+    }
+
+    .theme-color-danger {
+        color: #F56C6C;
+    }
+
+
+
+
+    .el-tree-node__label {
+        margin-left: 5px;
+        margin-top: -5px;
+    }
+
+    .el-popconfirm__main {
+        padding: 4px 0 8px 0;
+    }
+</style>

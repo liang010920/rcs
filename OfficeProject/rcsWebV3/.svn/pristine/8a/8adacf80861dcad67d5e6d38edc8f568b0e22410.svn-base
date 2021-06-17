@@ -1,0 +1,1684 @@
+<template>
+    <section class="info-push wrap-container">
+        <div class="info-main">
+            <el-form :label-position="'right'" label-width="150px" size="small" :model="dataObj" ref="infoPush"
+                :rules="rules">
+                <div class="info-pushOverflow" :style="{height:scrollHeightLeft}">
+                    <el-form-item label="选择chatbot" prop="chatbotId">
+                        <el-select v-model="chatbotId" placeholder="请选择">
+                            <el-option v-for="(item,index) in chatbotList" :key="'chatbotId'+index"
+                                :label="item.chatbotName" :value="item.id"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="任务名称">
+                        <el-input placeholder="请输入任务名称" v-model="infoName" maxlength="20"></el-input>
+                    </el-form-item>
+
+                    <el-form-item label="信息内容">
+                        <div class="template-prompt theme-color-gray" v-show="templateFlag">
+                            <div class="left">
+                                <i class="el-icon-warning theme-color-green"></i>
+                                本次发送模板，预计共有<span class="theme-color-green">1</span>个手机终端可进行推送
+                            </div>
+                            <div class="right theme-color" @click="templateFlag=false">
+                                重新选择
+                            </div>
+                        </div>
+
+                        <div class="template-any">
+                            <!--<div @click="templateFlag=true" v-show="!templateFlag">-->
+                            <!--<i style="font-size: 30px;color: #409eff" class="el-icon-news"></i>-->
+                            <!--<p>从媒体管理选择</p>-->
+                            <!--</div>-->
+                            <!--<div v-show="templateFlag">-->
+                            <!--hello world-->
+                            <!--</div>-->
+
+                            <el-button @click="mediaTemplateDialogFlag=true" v-show="!mediaSelectFlag">从模板中选择
+                            </el-button>
+                            <div class="select-content" v-show="mediaSelectFlag">
+                                <el-card :body-style="{ padding: '15px'}">
+                                    <el-image v-show="media.type!='TEMPLATE_TEXT'&&media.type!='TEMPLATE_DOCMENT'"
+                                        style="width: 100%; height: 150px;margin-bottom: 10px;"
+                                        :src="media.image | imgPath(typeObj[media.type])" fit="cover"></el-image>
+                                    <div class="item-desc">
+                                        <!-- <h3  v-show="media.type!=1&&media.type!=6">{{media.image}}</h3> -->
+                                        <h3>{{media.name}}</h3>
+                                        <p class="o-webkit-line2 theme-color-gray desc">{{media.text}}
+                                        <div class="bottom theme-color-gray">
+                                            <span></span>
+                                            <span class="control">
+                                                <i class="el-icon-view" @click="previewResource"></i>
+                                                <i class="el-icon-delete" @click="mediaSelectFlag=false;preData={}"></i>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </el-card>
+                            </div>
+
+
+                            <!-- The mock WeChat style is not used -->
+                            <el-tabs v-model="activeName" @tab-click="mediaSelectFlag=false" type="border-card"
+                                style="display: none">
+                                <el-tab-pane label="卡片" name="5">
+                                    <span slot="label"><i class="el-icon-postcard"></i> 卡片</span>
+                                    <div class="template-select-wrap">
+                                        <div class="template-select" v-show="!mediaSelectFlag">
+                                            <div @click="mediaTemplateDialogFlag=true">
+                                                <i style="font-size: 30px;color: #409eff" class="el-icon-news"></i>
+                                                <p>从媒体管理选择</p>
+                                            </div>
+                                            <div>
+                                                <router-link to="/resourceManage?rt=5">
+                                                    <i style="font-size: 30px;color: #409eff" class="el-icon-plus"></i>
+                                                    <p>上传卡片</p>
+                                                </router-link>
+                                            </div>
+                                        </div>
+                                        <div class="select-content" v-show="mediaSelectFlag">
+                                            <el-card :body-style="{ padding: '15px'}">
+                                                <el-image style="width: 100%; height: 150px;margin-bottom: 10px;"
+                                                    src="https://shadow.elemecdn.com/app/element/hamburger.9cf7b091-55e9-11e9-a976-7f4d0b07eef6.png"
+                                                    fit="cover"></el-image>
+                                                <div class="item-desc">
+                                                    <h3>好吃的汉堡</h3>
+                                                    <p class="o-webkit-line2 theme-color-gray desc">
+                                                        大家都吃过快餐,店里的牛肉汉堡,但是有时候可能不知道他们是用什么肉做的,你可以完全自己在家里做这个汉堡,既简单又营养。</p>
+                                                    <div class="bottom theme-color-gray">
+                                                        <span></span>
+                                                        <span class="control">
+                                                            <i class="el-icon-view" @click="previewResource"></i>
+                                                            <i class="el-icon-delete"
+                                                                @click="mediaSelectFlag=false"></i>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </el-card>
+                                        </div>
+                                    </div>
+
+                                </el-tab-pane>
+
+                                <el-tab-pane label="文本" name="1">
+                                    <span slot="label"><i class="el-icon-document"></i> 文本</span>
+                                    <div class="template-select-wrap">
+                                        <div class="template-select" v-show="!mediaSelectFlag">
+                                            <div @click="mediaTemplateDialogFlag=true">
+                                                <i style="font-size: 30px;color: #409eff" class="el-icon-news"></i>
+                                                <p>从媒体管理选择</p>
+                                            </div>
+                                            <div>
+                                                <router-link to="/resourceManage?rt=1">
+                                                    <i style="font-size: 30px;color: #409eff" class="el-icon-plus"></i>
+                                                    <p>上传文本</p>
+                                                </router-link>
+                                            </div>
+                                        </div>
+                                        <div class="select-content" v-show="mediaSelectFlag">
+                                            内容
+                                        </div>
+                                    </div>
+
+                                </el-tab-pane>
+
+                                <el-tab-pane label="视频" name="4">
+                                    <span slot="label"><i class="el-icon-video-play"></i> 视频</span>
+
+
+                                </el-tab-pane>
+
+                                <el-tab-pane label="语音" name="3">
+                                    <span slot="label"><i class="el-icon-headset"></i> 语音</span>
+
+                                </el-tab-pane>
+                                <el-tab-pane label="图片" name="2">
+                                    <span slot="label"><i class="el-icon-picture-outline"></i> 图片</span>
+                                    图片
+                                </el-tab-pane>
+
+                            </el-tabs>
+
+
+                        </div>
+                    </el-form-item>
+
+                    <el-form-item label="定时发送" prop="timeStatus">
+                        <div>
+                            <span>
+                                <el-switch v-model="timeStatus"></el-switch>
+                            </span>
+                            &nbsp;
+                            <span v-show="timeStatus">
+                                <el-date-picker v-model="timeValue" type="datetime" value-format="yyyy-MM-dd HH:mm:ss"
+                                    placeholder="选择日期时间">
+                                </el-date-picker>
+                            </span>
+                        </div>
+
+                    </el-form-item>
+                    <el-form-item label="发送号码">
+                        <el-input type="textarea" :rows="9" placeholder="请输入手机号码" @blur="setContacts(contactStr)"
+                            v-model="contactStr">
+                        </el-input>
+                        <div class="import-mobile-prompt theme-color-gray">
+                            已添加 <span class="theme-color-blue">{{this.contacts.length}}</span> 个号码 <el-button
+                                @click="cleanContacts" size="mini" style="float: right">清空</el-button>
+                            （注：下框中也可直接输入手机号码，手机号码之间用英文分号";"隔开）
+                        </div>
+                    </el-form-item>
+                    <el-form-item label="选择群组发送号码">
+                        <div v-if="tagIndex > 0">
+                            <el-tag :key="'tag'+index" v-for="(tag,index) in dynamicTags" closable
+                                :disable-transitions="false" @close="tagClose(tag.id)">
+                                {{tag.label}}
+                            </el-tag>
+                        </div>
+                        <div v-else>未选择群组</div>
+                    </el-form-item>
+
+                    <el-form-item label="选择联系人发送号码">
+                        <div v-if="contactsIndex > 0">
+                            <el-tag :key="'tag'+index" v-for="(tag,index) in checkedCities" closable
+                                :disable-transitions="false" @close="tagContactsClose(index)">
+                                {{tag.name}}-{{tag.phoneNo}}
+                            </el-tag>
+                        </div>
+                        <div v-else>未选择联系人</div>
+                    </el-form-item>
+
+                    <!-- 手动添加区域 -->
+                    <el-collapse-transition>
+                        <div v-show="manuallyFlag" class="manually-add-wrapper">
+                            <el-form size="small" :inline="true" :model="contact">
+                                <el-form-item>
+                                    <el-input placeholder="姓名" v-model="contact.name"></el-input>
+                                </el-form-item>
+                                <el-form-item>
+                                    <el-input placeholder="电话" v-model="contact.phoneNo" maxlength="11"
+                                        oninput="value=value.replace(/[^\d]/g,'')"></el-input>
+                                </el-form-item>
+                                <el-form-item>
+                                    <el-input placeholder="备注" v-model="contact.description"></el-input>
+                                </el-form-item>
+                                <el-form-item>
+                                    <el-button @click="manuallyFlag=false">取消</el-button>
+                                </el-form-item>
+                                <el-form-item>
+                                    <el-button type="primary" @click="addContact">添加</el-button>
+                                </el-form-item>
+                            </el-form>
+                        </div>
+                    </el-collapse-transition>
+                    <!-- 手动添加区域 -->
+
+                    <el-form-item label="选择文件发送号码">
+                        <!-- <el-button @click="batchTemplateFlag=!batchTemplateFlag">批量导入</el-button> -->
+                        <el-row>
+                            <el-col :span="6">
+                                <el-button type="primary" size="small" class="file-wrap"><a class="seat"
+                                        download="批量导入联系人模板"
+                                        href="/static/templateExcel/infoPush-batch-import.xlsx"></a>文件模板下载</el-button>
+                            </el-col>
+                            <el-col :span="18">
+                                <upload-file-base :limit="20" :fileSize="500" ref="fileUpload"
+                                    accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                    folderType="file"></upload-file-base>
+                            </el-col>
+                        </el-row>
+                        <!--<el-button @click="addressBookFlag=!addressBookFlag">通讯录</el-button>-->
+                        <!-- <el-button @click="manuallyFlag=!manuallyFlag">手动添加</el-button> -->
+                    </el-form-item>
+                </div>
+
+                <el-form-item class="handleSubmit">
+                    <el-button type="primary" size="small" @click="handleSubmit('infoPush')">发送
+                    </el-button>
+                </el-form-item>
+
+
+                <!--<div class="warn">-->
+                <!--<i class="el-icon-warning"></i>-->
+                <!--<p>-->
+                <!--为保障用户体验，行业富媒体消息平台严禁恶意营销以及诱导分享朋友圈，严禁发布色情-->
+                <!--低俗、暴力血腥、政治谣言等各类违反法律法规及相关政策规定的信息。一旦发现，我们将严厉打击和处理。-->
+                <!--</p>-->
+                <!--</div>-->
+
+            </el-form>
+        </div>
+        <!--<el-drawer-->
+        <!--title="通讯录"-->
+        <!--:visible.sync="addressBookFlag"-->
+        <!--direction="rtl"-->
+        <!--:with-header="false"-->
+        <!--&gt;-->
+        <div class="drawer-main">
+            <div class="content scrollbar">
+                <el-tabs type="card" v-model="activeContactTab" @tab-click="tabClick">
+                    <!--:default-expand-all="true"-->
+                    <el-tab-pane label="群组">
+                        <el-tree :data="treeData" :style="{height:scrollHeight}" :props="defaultProps"
+                            v-if="infoPushFlag" :default-checked-keys="ownMenu" node-key="id" :load="loadNode" lazy
+                            :default-expanded-keys="[0]" show-checkbox :expand-on-click-node="false" check-strictly
+                            ref="groupTree" @check-change="handleCheckChange" @node-click="handleNodeClick"></el-tree>
+                    </el-tab-pane>
+                    <!-- <el-tab-pane label="联系人">
+                        <el-input type="input" v-model="contactsName" placeholder="搜索联系人"></el-input>
+                        <el-table ref="multipleTable" :data="pageTableData" tooltip-effect="dark" style="width: 100%"
+                            @select="handleSelect" @selection-change="handleSelectionChange">
+                            <el-table-column type="selection" width="45">
+                            </el-table-column>
+                            <el-table-column label="姓名" width="100">
+                                <template slot-scope="scope">{{ scope.row.name }}</template>
+                            </el-table-column>
+                            <el-table-column prop="phoneNo" label="手机号" width="120">
+                            </el-table-column>
+                            <el-table-column prop="description" label="备注" show-overflow-tooltip>
+                            </el-table-column>
+                        </el-table>
+                    </el-tab-pane> -->
+                </el-tabs>
+
+                <div class="contactsShow">
+                    <el-checkbox :indeterminate="isIndeterminate" v-model="checkAll" @change="handleCheckAllChange">全选
+                    </el-checkbox>
+                    <div style="margin: 15px 0;"></div>
+                    <el-checkbox-group v-model="checkedCities" @change="handleCheckedCitiesChange">
+                        <el-checkbox v-for="(contacts,index) in contactsTags" :label="contacts" :key="'contacts'+index">
+                            {{contacts.name}}-{{contacts.phoneNo}}
+                        </el-checkbox>
+                    </el-checkbox-group>
+                    <!-- <el-tag :key="'tag'+index" v-for="(tag,index) in contactsTags" closable :disable-transitions="false">
+                        {{tag.name}}-{{tag.phoneNo}}
+                    </el-tag> -->
+                </div>
+            </div>
+
+            <!-- 页码区 -->
+            <!-- <div class="control">
+                <div class="page-wrap" v-show="activeContactTab==1">
+                    <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="page.curPage"
+                        :page-sizes="[8, 20, 30]" :page-size="page.size" layout="total, prev, pager, next" :pager-count="5"
+                        :total="page.total">
+                    </el-pagination>
+                </div>
+                <br>
+            </div> -->
+        </div>
+        <!--</el-drawer>-->
+
+
+        <!-- 手动添加 start -->
+        <!--<el-dialog-->
+        <!--title="手动添加"-->
+        <!--:visible.sync="manuallyFlag"-->
+        <!--width="600px"-->
+        <!--center-->
+        <!--:close-on-click-modal="false">-->
+
+        <!--<el-form :model="dataObj">-->
+        <!--<el-form-item>-->
+        <!--<el-row style="margin-top:20px" type="flex" align="middle" v-for="(mobile,index) in mobileList" :key="index">-->
+        <!--<el-col :span="22">-->
+        <!--<el-input placeholder="" size="small" v-model="mobile.mobile">-->
+        <!--<template slot="prepend">手机号</template>-->
+        <!--</el-input>-->
+        <!--</el-col>-->
+
+        <!--<el-col :span="2" style="text-align: center;margin-top: -8px">-->
+        <!--<el-button type="danger" icon="el-icon-delete" circle size="small" @click="deleteMobile(index)"></el-button>-->
+        <!--</el-col>-->
+        <!--</el-row>-->
+        <!--</el-form-item>-->
+        <!--<el-form-item class="packageDetail">-->
+        <!--<el-button type="primary" size="small" icon="el-icon-plus" @click="addMobile">添加手机号</el-button>-->
+        <!--</el-form-item>-->
+        <!--</el-form>-->
+
+        <!--<span slot="footer" class="dialog-footer">-->
+        <!--<el-button @click="manuallyFlag = false" size="small">取 消</el-button>-->
+        <!--<el-button type="primary" size="small" @click="manuallyFlag = false">确 定</el-button>-->
+        <!--</span>-->
+        <!--</el-dialog>-->
+        <!-- 手动添加 end -->
+
+        <!-- 通讯录start -->
+        <!--<el-dialog-->
+        <!--title="通讯录"-->
+        <!--:visible.sync="addressBookFlag"-->
+        <!--width="600px"-->
+        <!--center-->
+        <!--:close-on-click-modal="false">-->
+
+        <!--<el-tree :data="data" :props="defaultProps"-->
+        <!--show-checkbox-->
+        <!--@node-click="handleNodeClick"></el-tree>-->
+
+        <!--<span slot="footer" class="dialog-footer">-->
+        <!--<el-button @click="addressBookFlag = false" size="small">取 消</el-button>-->
+        <!--<el-button type="primary" size="small" @click="addressBookFlag = false">确 定</el-button>-->
+        <!--</span>-->
+        <!--</el-dialog>-->
+        <!-- 通讯录end -->
+        <!-- 批量导入start -->
+        <el-dialog title="批量导入" :visible.sync="batchTemplateFlag" width="600px" center :close-on-click-modal="false">
+
+            <el-button type="primary" size="small" class="file-wrap"><a class="seat" download="批量导入联系人模板"
+                    href="/static/templateExcel/infoPush-batch-import.xlsx"></a>文件模板下载</el-button>
+
+            <el-button type="primary" size="small" class="file-wrap">
+                <input class="seat" type="file" id="seat"
+                    accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    @change="excel2json($event)">
+                选择文件导入
+            </el-button>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="batchTemplateFlag = false" size="small">关 闭</el-button>
+            </span>
+        </el-dialog>
+        <!-- 批量end -->
+
+
+        <!-- dialog start-->
+        <el-dialog title="选择媒体" class="ziYuanHeight" :visible.sync="mediaTemplateDialogFlag" width="80%" center
+            :close-on-click-modal="false">
+
+            <!--<span slot="footer" class="dialog-footer">-->
+            <!--<el-button @click="mediaTemplateDialogFlag = false" size="small">取 消</el-button>-->
+            <!--<el-button type="primary" size="small" @click="confirmSelect">确 定</el-button>-->
+            <!--</span>-->
+
+            <media-list v-if="mediaTemplateDialogFlag" :scene="2" :selectId="selectId" @currentChange="selectRow"
+                @hideMask="hideMask"></media-list>
+        </el-dialog>
+        <!-- dialog end-->
+
+
+        <!-- dialog start-->
+        <el-dialog title="预览" :visible.sync="previewResourceDialogFlag" width="600px" center
+            :close-on-click-modal="false">
+            <!-- <pre-view :row='preData' v-if="previewResourceDialogFlag"></pre-view> -->
+            <preview-resource :preData="preData" :replyList="dynamicSuggest"></preview-resource>
+        </el-dialog>
+        <!-- dialog end -->
+
+    </section>
+</template>
+
+<script>
+    import XLSX from 'xlsx';
+    import PreviewResource from '../resource/PreviewResource'
+    import PreView from '../components/Preview/index.vue'
+    import MediaList from '../resource/MediaManage'
+    import {
+        adminServer
+    } from '../../config/config.js'
+    import UploadFileBase from '../../components/UploadFileBase'
+    import {
+        getGroupListByParent,
+        getContactPhoneList,
+        pushMsg,
+        getValidBlackWhiteList,
+        getPasswayList
+    } from '../../api/api'
+
+    export default {
+        name: "infoPush",
+        // inject:['reload'],
+        components: {
+            PreviewResource,
+            MediaList,
+            UploadFileBase,
+            PreView,
+        },
+        filter: {
+            nullTransformation(value) {
+                if (value == null) {
+                    return 0
+                }
+                return value
+            }
+        },
+        data() {
+            return {
+                adminServer,
+                dialogVisible: true,
+                contactsName: '', //联系人搜索字段
+                infoName: '',
+                rules: {},
+                ownMenu: [],
+                dataObj: {},
+                manuallyFlag: false, //手动添加
+                addressBookFlag: false, //通讯录
+                templateFlag: false, //模板选择
+                batchTemplateFlag: false,
+                mobileList: [],
+                contact: {},
+                mediaTemplateDialogFlag: false, // 媒体列表弹窗框
+                mediaType: 5,
+                mediaSelectFlag: false, // 是否选择了媒体
+                previewResourceDialogFlag: false,
+                activeName: '5',
+                dynamicSuggest: [],
+                inputVisible: false,
+                inputValue: '',
+                suggestFlag: false,
+                suggest: {
+                    type: 'Reply'
+                },
+                dialogParam: '',
+                tableLoading: false,
+                tagButonFlag: true,
+                timeOptions: [
+                    24, 48, 96
+                ],
+                activeContactTab: '',
+                treeData: [{
+                    id: 1,
+                    label: '短信平台',
+                    children: [{
+                            id: 2,
+                            label: '研发部',
+                            children: [{
+                                label: '第一组'
+                            }]
+                        },
+                        {
+                            id: 3,
+                            label: '产品部',
+                            children: []
+                        }
+                    ]
+                }],
+                tableData: [],
+                pageTableData: [], // 分页用
+                contactMap: {},
+                contacts: [],
+                contactStr: '',
+                preContacts: [],
+                multipleSelection: [],
+                defaultProps: {
+                    children: 'children',
+                    label: 'label'
+                },
+                preData: {
+                    suggestedResponse: '{}'
+                },
+                media: {},
+                typeObj: {
+                    '1': 'text',
+                    '2': 'image',
+                    '3': 'audio',
+                    '4': 'video',
+                    '5': 'image'
+                },
+                selectContacts: [],
+                cancelContactObj: {}, //取消勾选的联系人
+                blackWhite: [],
+                page: {
+                    curPage: 1,
+                    size: 8,
+                    total: 0
+                }, // 传入后台参数
+                dragIndex: 0,
+                infoPushFlag: true,
+                timeStatus: false,
+                timeValue: null,
+                selectId: -1,
+                inputIsShow: false, //如果手动输入超过100禁用
+                dynamicTags: [],
+                tagIndex: 0,
+                contactsIndex: 0,
+                contactsTags: [],
+                checkAll: false,
+                checkedCities: [],
+                isIndeterminate: true,
+                chatbotId: 0,
+                chatbotList: [],
+                scrollHeight: '',
+                scrollHeightLeft: '',
+            }
+        },
+        methods: {
+            getPasswayList() {
+                getPasswayList({
+                    curPage: 1,
+                    size: 1000,
+                    chatbotName: '',
+                    userId: ''
+                }).then(res => {
+                    this.chatbotList = res.data.records
+                    this.chatbotId = this.chatbotList[0].id
+                })
+            },
+            handleCheckAllChange(val) {
+                if (this.checkAll) {
+                    let removal
+                    this.contactsTags.forEach(item => {
+                        this.checkedCities.push(item)
+                        removal = [...new Set(this.checkedCities)]
+                        this.checkedCities = removal
+                    })
+
+                    this.contactsIndex = this.checkedCities.length
+                } else {
+                    this.checkedCities = []
+                    this.contactsIndex = 0
+                }
+                this.isIndeterminate = false;
+            },
+            handleCheckedCitiesChange(value) {
+                let checkedCount = value.length;
+                this.checkAll = checkedCount === this.contactsTags.length;
+                this.isIndeterminate = checkedCount > 0 && checkedCount < this.contactsTags.length;
+                this.contactsIndex = checkedCount
+            },
+            tagClose(id) {
+                console.log('id:', id)
+                let tagList = []
+                for (var i = 0; i < this.dynamicTags.length; i++) {
+                    if (this.dynamicTags[i].id == id) {
+                        this.dynamicTags.splice(i, 1)
+                        this.tagIndex -= 1;
+                        this.$refs.groupTree.setCheckedKeys([]);
+                    }
+                }
+                tagList = this.dynamicTags
+                // console.log('tagList:',tagList)
+                this.$refs.groupTree.setCheckedNodes(tagList);
+                // this.dynamicTags.splice(this.dynamicTags.indexOf(id), 1);
+
+                // this.$refs.groupTree.setCheckedKeys([]);
+            },
+            tagContactsClose(index) {
+                this.checkedCities.splice(index, 1)
+                this.contactsIndex = this.checkedCities.length
+            },
+            handleCurrentChange: function(currentPage) { //改变当前页
+                this.page.curPage = currentPage
+                this.loadData()
+            },
+            handleSizeChange: function(size) { //改变页面size
+                this.page.size = size;
+                this.loadData()
+            },
+            loadData() {
+                this.page.total = this.tableData.length
+                let start = (this.page.curPage - 1) * this.page.size
+                let end = start + this.page.size
+                this.pageTableData = this.tableData.slice(start, end)
+                // console.log(this.pageTableData)
+                // this.$refs.multipleTable.toggleAllSelection()
+                let count = 0
+
+                this.$nextTick(() => {
+                    this.pageTableData.forEach(val => {
+                        if (!this.cancelContactObj[val.id]) {
+                            // 选中
+                            this.$refs.multipleTable.toggleRowSelection(val, true)
+                            count++
+                        }
+                    })
+
+                    // 当前页选择联系人的个数
+                    this.tableCheckedCount = count
+                })
+
+            },
+            cleanContacts() {
+                this.preContacts = this.contacts = []
+            },
+            handleSubmit() {
+                // let a = this.$refs.fileUpload.getFileString()
+                console.log('文件返回数据:', this.$refs.fileUpload)
+                // console.log('result:',this.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ())
+                if (!this.chatbotId) {
+                    this.$message.warning('请选择chatbot')
+                    return
+                }
+                if (!this.infoName) {
+                    this.$message.warning('请输入任务名称')
+                    return
+                }
+                if (!this.preData.id) {
+                    this.$message.warning('请选择信息内容')
+                    return
+                }
+
+                if (this.timeStatus && !this.timeValue) {
+                    this.$message.warning('请选择发送时间')
+                    return
+                }
+
+                let result = this.checkContacts()
+                console.log('result.length:', result.length)
+                console.log('this.$refs.fileUpload.fileList.length:', this.$refs.fileUpload.fileList.length)
+                console.log('this.checkedCities.length:', this.checkedCities.length)
+                console.log('this.dynamicTags.length:', this.dynamicTags.length)
+                if (result.length == 0 && this.$refs.fileUpload.fileList.length == 0 && this.checkedCities.length ==
+                    0 && this.dynamicTags.length == 0) {
+                    this.$message.warning('没有有效号码可发送')
+                    return
+                }
+
+                // 本次发送模板预计共有【 ' + result.length + ' 】个号码可发送, 是否继续
+                this.$confirm('本次消息是否发送?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'success'
+                }).then(() => {
+                    let params = {
+                        name: this.infoName || this.preData.name,
+                        sendMobile: result.join(),
+                        resourceId: this.preData.id + '',
+                        mediaId: this.preData.mediaId + '',
+                        type: this.preData.type + '',
+                        content: JSON.stringify(this.preData),
+                        suggestedResponse: JSON.stringify(this.preData.suggestedResponse),
+                        sendFile: JSON.stringify(this.$refs.fileUpload.fileList),
+                        sendGroup: JSON.stringify(this.dynamicTags),
+                        sendContact: JSON.stringify(this.checkedCities),
+                        chatbotId: this.chatbotId
+                    }
+                    if (this.timeStatus) {
+                        params.sendTime = this.timeValue
+                    } else {
+                        params.sendTime = null
+                    }
+                    pushMsg(params).then(rsp => {
+                        if (rsp.success) {
+                            this.$message.success('发送任务创建成功')
+                            this.$store.dispatch('tagsView/delView', this.$route).then(() => {
+                                this.$router.push('/pushList')
+                            })
+                            this.dynamicTags = []
+                            this.$refs.fileUpload.fileList = []
+                            this.$refs.groupTree.setCheckedKeys([]);
+                            this.getPasswayList()
+                            this.checkedCities = []
+                            this.contactsTags = []
+                            this.tagIndex = 0;
+                            this.isIndeterminate = true
+                            this.checkAll = false
+                            this.contactsIndex = 0
+                        } else {
+                            this.$message.error(rsp.message)
+                        }
+                    })
+                }).catch(() => {});
+            },
+            checkContacts() {
+                let loading = this.$loading({
+                    text: '号码检测中...'
+                })
+                let contacts = []
+                this.contacts.forEach(val => {
+                    if (this.$checkMobile(val.phoneNo, false)) {
+                        contacts.push(Number(val.phoneNo))
+                    }
+                })
+                contacts = [...new Set(contacts)]
+
+                let result = [],
+                    i = 0
+                // console.log('contacts:',contacts)
+                let type = 0
+                // type 1黑名单2白名单  mode 1=手动添加或导入的号码  2=号码段  3=正则表达式
+                this.blackWhite.forEach(val => {
+                    // debugger
+                    type = val.type
+                    let mode = val.mode
+                    if (mode == 1) { //字符串
+                        let list = result[i] || result[i - 1] || contacts
+                        let phoneNo = val.phoneNo
+                        list.forEach(c => {
+                            if (type == 1) { //黑名单
+                                if (phoneNo.indexOf(c) == -1) {
+                                    if (!result[i]) result[i] = []
+                                    result[i].push(c)
+                                }
+                            } else if (type == 2) { //白名单
+                                if (phoneNo.indexOf(c) != -1) {
+                                    if (!result[i]) result[i] = []
+                                    result[i].push(c)
+                                }
+                            }
+                        })
+                    } else if (mode == 2) { //号段
+                        let start = Number(val.pre + val.startNo),
+                            end = Number(val.pre + val.endNo)
+                        let list = result[i] || result[i - 1] || contacts
+                        list.forEach(c => {
+                            if (type == 1) { //黑名单
+                                if (c < start || c > end) {
+                                    if (!result[i]) result[i] = []
+                                    result[i].push(c)
+                                }
+                            } else if (type == 2) { //白名单
+                                if (c >= start && c <= end) {
+                                    if (!result[i]) result[i] = []
+                                    result[i].push(c)
+                                }
+                            }
+                        })
+                    }
+                    if (!result[i]) result[i] = []
+                    i++
+                })
+                loading.close()
+
+                if (this.blackWhite.length == 0) {
+                    return contacts
+                }
+                return result[i - 1]
+            },
+            test() {
+
+                /**
+                 * 通用的打开下载对话框方法，没有测试过具体兼容性
+                 * @param url 下载地址，也可以是一个blob对象，必选
+                 * @param saveName 保存文件名，可选
+                 */
+                function openDownloadDialog(url, saveName) {
+                    if (typeof url == 'object' && url instanceof Blob) {
+                        url = URL.createObjectURL(url); // 创建blob地址
+                    }
+                    var aLink = document.createElement('a');
+                    aLink.href = url;
+                    aLink.download = saveName || ''; // HTML5新增的属性，指定保存文件名，可以不要后缀，注意，file:///模式下不会生效
+                    var event;
+                    if (window.MouseEvent) event = new MouseEvent('click');
+                    else {
+                        event = document.createEvent('MouseEvents');
+                        event.initMouseEvent('click', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0,
+                            null);
+                    }
+                    aLink.dispatchEvent(event);
+                }
+
+                function sheet2blob(sheet, sheetName) {
+                    sheetName = sheetName || 'sheet1';
+                    var workbook = {
+                        SheetNames: [sheetName],
+                        Sheets: {}
+                    };
+                    workbook.Sheets[sheetName] = sheet;
+                    // 生成excel的配置项
+                    var wopts = {
+                        bookType: 'xlsx', // 要生成的文件类型
+                        bookSST: false, // 是否生成Shared String Table，官方解释是，如果开启生成速度会下降，但在低版本IOS设备上有更好的兼容性
+                        type: 'binary'
+                    };
+                    var wbout = XLSX.write(workbook, wopts);
+                    var blob = new Blob([s2ab(wbout)], {
+                        type: "application/octet-stream"
+                    });
+                    // 字符串转ArrayBuffer
+                    function s2ab(s) {
+                        var buf = new ArrayBuffer(s.length);
+                        var view = new Uint8Array(buf);
+                        for (var i = 0; i != s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
+                        return buf;
+                    }
+                    return blob;
+                }
+
+
+                let data = {
+                    cols: [{
+                        name: "A",
+                        key: 0
+                    }, {
+                        name: "B",
+                        key: 1
+                    }, {
+                        name: "C",
+                        key: 2
+                    }],
+                    data: [
+                        ["id", "name", "value"],
+                        [1, "sheetjs", 7262],
+                        [2, "js-xlsx", 6969]
+                    ]
+                }
+
+
+                /* convert from array of arrays to workbook */
+                var worksheet = XLSX.utils.aoa_to_sheet(data.data);
+                // var worksheet = XLSX.utils.json_to_sheet(data.data);
+
+
+                /* generate workbook and add the worksheet */
+                // var new_workbook = XLSX.utils.book_new();
+                // XLSX.utils.book_append_sheet(new_workbook, worksheet, "SheetJS");
+
+                /* save to file */
+                // XLSX.writeFile(new_workbook, "sheetjs.xlsx");
+
+                openDownloadDialog(sheet2blob(worksheet), '导出.xlsx');
+
+
+
+            },
+            excel2json(evt) {
+                this.$excel2Array(evt, jsonArray => {
+                    let sourcePropsList = Object.keys(jsonArray[0])
+
+                    if (sourcePropsList.indexOf('phoneNo') == -1) {
+                        this.$message.warning("没有匹配到数据,请按模板填写重新导入")
+                        return
+                    }
+
+                    jsonArray.push(...this.contacts)
+                    this.contacts = jsonArray
+                    this.batchTemplateFlag = false
+                    this.$message.success("操作成功");
+                })
+            },
+
+
+            // addMobile(){
+            //     this.mobileList.push({})
+            // },
+            // deleteMobile(index){
+            //     this.mobileList.splice(index,1)
+            // },
+            handleDeleteContact(index) {
+                this.contacts.splice(index, 1)
+            },
+            addContact() {
+                let contact = this.contact
+                if (this.$checkMobile(contact.phoneNo)) {
+                    this.contacts.reverse()
+                    this.contacts.push(contact)
+                    this.contacts.reverse()
+                    this.manuallyFlag = false
+                    this.contact = {}
+                }
+            },
+            // confirmSelect(){
+            //     this.mediaTemplateDialogFlag = false
+            //     this.mediaSelectFlag = true
+            //     if (this.currentRow) {
+            //         this.templateName = this.currentRow.name
+            //     }
+            //
+            // },
+            previewResource() {
+                this.previewResourceDialogFlag = true
+            },
+            handleClose(index) {
+                this.dynamicSuggest.splice(index, 1);
+            },
+
+            dragStart(index) {
+                this.dragIndex = index
+            },
+            dragOver(index) {
+                let param = this.dynamicSuggest
+                if (this.dragIndex != index) {
+                    this.exchange(param[index], param[this.dragIndex], index, this.dragIndex, param)
+                    this.dragIndex = index
+                }
+            },
+            exchange(param1, param2, index1, index2, obj) {
+                obj.splice(index1, 0, obj.splice(index2, 1)[0])
+                // this.$set(obj,index1,param2)
+                // this.$set(obj,index2,param1)
+            },
+            showInput(e) {
+                this.inputVisible = true;
+                // this.$nextTick(_ => {
+                //     this.$refs.saveTagInput.$refs.input.focus();
+                // });
+            },
+
+            handleInputConfirm() {
+                let inputValue = this.suggest;
+                if (inputValue.type && inputValue.displayText) {
+                    this.dynamicSuggest.push(inputValue);
+                    inputValue.data = 'set_by_chatbot_reply_yes'
+                }
+                this.inputVisible = false;
+                this.suggest = {
+                    type: 'Reply'
+                };
+            },
+            handleNodeClick(dataObj, nodeObj, node) {
+                // console.log('dataObj,:', dataObj, )
+                // console.log('nodeObj,:', nodeObj, )
+                // console.log('node：', node, )
+                this.getContacts(0, 1, dataObj.code)
+            },
+            handleCheckChange(data, checked, indeterminate) {
+                // console.log('data:', data)
+                // console.log('checked:', checked)
+                // console.log('indeterminate:', indeterminate)
+                // console.log('groupTree:', this.$refs.groupTree)
+                // console.log('this.dynamicTags:', this.dynamicTags)
+
+                this.page.curPage = 1
+                let code = data.code
+                if (checked) {
+                    this.dynamicTags.push(data)
+                    this.tagIndex += 1;
+                    // console.log('this.contactMap[code]--------',this.contactMap[code])
+                    // if (!this.contactMap[code]) {
+                    getContactPhoneList({
+                        type: 0,
+                        paging: 1,
+                        groupCode: code,
+                        current: this.page.curPage,
+                        size: this.page.size
+                    }).then(rsp => {
+                        if (rsp.success) {
+                            this.contactMap[code] = rsp.data
+                        }
+                    })
+                    // }
+                } else {
+                    for (var i = 0; i < this.dynamicTags.length; i++) {
+                        if (data.id == this.dynamicTags[i].id) {
+                            this.dynamicTags.splice(i, 1)
+                            this.tagIndex -= 1;
+                        }
+                    }
+                }
+
+                // let loading = this.$loading({
+                //     text: '...'
+                // })
+                // this.setTableData()
+                // setTimeout(() => {
+                //     let result = this.getContactsResult()
+                //     this.contacts.push(...result)
+                //     this.addressBookFlag = false
+                //     loading.close()
+                // }, 1000)
+            },
+            loadNode(node, resolve) {
+                // console.log('node:',node)
+                if (node.level === 0) {
+                    let customerId = this.$store.state.user.customerId
+                    this.rootCode = customerId + '01'
+                    return resolve([{
+                        id: 0,
+                        label: '通讯录群组',
+                        code: this.rootCode
+                    }]);
+                } else {
+                    this.getGroup(node.data.code, resolve)
+                }
+
+            },
+            getGroup(parentCode, resolve) {
+                getGroupListByParent({
+                    parentCode: parentCode
+                }).then(rsp => {
+                    // console.log(rsp)
+                    if (rsp.success) {
+                        rsp.data.forEach(val => {
+                            val.label = val.name
+                        })
+                        resolve(rsp.data)
+                    }
+
+                })
+            },
+            tabClick(tab) {
+                if (this.activeContactTab == 1) {
+                    this.setTableData()
+                }
+            },
+            setTableData() {
+                this.tableData = []
+                this.tableDataAll = []
+                let nodes = this.$refs.groupTree.getCheckedNodes()
+                if (nodes.length > 0) {
+                    for (let i = 0; i < nodes.length; i++) {
+                        this.getContacts(0, 1, nodes[i].code)
+                    }
+                } else {
+                    this.getContacts(0, 1, '')
+                }
+                this.loadData()
+            },
+            getContactsResult() {
+                // 过滤掉取消勾选的数据
+                let result = this.tableData.filter(val => {
+                    console.log(val)
+                    return !this.cancelContactObj[val.id]
+                })
+                return result
+            },
+            selectContfirm() { // 确定选择联系人
+                // this.activeContactTab = ''
+                // if (this.activeContactTab==0){
+                //     this.tableData = []
+                //     this.tableDataAll = []
+                //     let nodes = this.$refs.groupTree.getCheckedNodes()
+                //     for (let i=0;i<nodes.length;i++){
+                //         this.getContacts(0,1,nodes[i].code)
+                //     }
+                // }
+
+                // if (this.selectContacts.length==0){
+                //     this.$message.warning('没有选择联系人')
+                // }else{
+                //     this.contacts.push(...this.selectContacts)
+                //     this.addressBookFlag = false
+                //     this.selectContacts = []
+                // }
+
+                // return
+                let loading = this.$loading({
+                    text: '...'
+                })
+                this.setTableData()
+                setTimeout(() => {
+                    let result = this.getContactsResult()
+                    this.contacts.push(...result)
+                    this.addressBookFlag = false
+                    loading.close()
+                }, 1000)
+            },
+            /**
+             *
+             * @param type 0查当前群组，不查子群组
+             * @param paging 0需要分页
+             */
+            getContacts(type, paging, code, name) {
+                this.contactsTags = []
+                // console.log('this.contactMap[code]:--',this.contactMap[code])
+                if (this.contactMap[code]) {
+                    this.tableData.push(...this.contactMap[code])
+                    this.contactsTags.push(...this.contactMap[code])
+                    // this.tableDataAll.push(...this.contactMap[code])
+                    // this.$refs.multipleTable.toggleAllSelection()
+                } else {
+                    getContactPhoneList({
+                        type: type,
+                        paging: paging,
+                        groupCode: code,
+                        current: this.page.curPage,
+                        size: this.page.size,
+                        name: name
+                    }).then(rsp => {
+                        if (rsp.success) {
+                            this.contactMap[code] = rsp.data
+                            this.tableData.push(...rsp.data)
+                            this.contactsTags.push(...rsp.data)
+                            // console.log('rsp.data：', this.cityOptions)
+                        }
+                    })
+                }
+            },
+            handleSelect(selection, row) {
+                let currSize = selection.length
+                if (currSize < this.tableCheckedCount) {
+                    // 取消勾选
+                    this.cancelContactObj[row.id] = row
+                } else {
+                    // 勾选
+                    this.cancelContactObj[row.id] = null
+                }
+
+                this.tableCheckedCount = currSize
+
+                // console.log('current:',selection,row)
+            },
+
+            handleSelectionChange(selection) {
+                // console.log('select:',select)
+                // this.selectContacts = select
+            },
+            selectRow(row) { //选择媒体
+                this.mediaTemplateDialogFlag = false
+                this.mediaSelectFlag = true
+
+                // if(row.type == "TEMPLATE_TEXT"){
+                //     row.content = row.content.substr(1); //删除第一个字符
+                //     row.content = row.content.substr(0, row.content.length - 1); //删除最后一字符
+                // }
+                this.preData = row
+
+                this.media.type = row.type
+                let content = JSON.parse(row.content)
+                console.log('content:', content)
+                console.log('row:', row)
+                this.media.name = content.name || row.name
+                this.media.image = content[0].image
+                this.media.text = content.text
+                this.dynamicSuggest = row.suggestedResponse
+                // console.log(content)
+            },
+            hideMask() {
+                this.mediaTemplateDialogFlag = false
+            },
+            setContacts(newValue) {
+                newValue = newValue.replace(/；/g, ';')
+                if (newValue) {
+                    let arr = newValue.split(';')
+                    let param
+                    this.inputIsShow = false
+                    this.contacts = arr.map(val => {
+                        param = val.trim().split(' ')
+                        if (param.length == 1) {
+                            return {
+                                name: '',
+                                phoneNo: param[0]
+                            }
+                        } else {
+                            return {
+                                name: param[0],
+                                phoneNo: param[1]
+                            }
+                        }
+                    })
+
+                } else {
+                    this.contacts = []
+                }
+
+            }
+        },
+
+        watch: {
+            contactsName() {
+                getContactPhoneList({
+                    type: 0,
+                    paging: 1,
+                    groupCode: '',
+                    current: this.page.curPage,
+                    size: this.page.size,
+                    name: this.contactsName
+                }).then(rsp => {
+                    if (rsp.success) {
+                        // console.log('接口数据rsp.data：',rsp.data)
+                        this.pageTableData = rsp.data
+
+                        // console.log('接口数据rsp.data：',this.pageTableData)
+                        // console.log('contactMap[code]：',this.contactMap[code])
+                        // this.tableData.push(...rsp.data)
+                        // console.log('tableData：',this.tableData)
+                        // this.tableDataAll.push(...rsp.data)
+                        // this.$refs.multipleTable.toggleAllSelection()
+
+                        // this.tableData.push(...this.contactMap[code])
+                    }
+                })
+                this.loadData()
+            },
+            dynamicSuggest(newValue) {
+                if (newValue.length >= 11) {
+                    this.tagButonFlag = false
+                } else {
+                    this.tagButonFlag = true
+                }
+            },
+            contacts(newValue) {
+                // console.log('vvvv:',newValue)
+                // if (newValue.length>500){
+                //     this.preContacts = newValue.slice(0,500)
+                // } else{
+                //     this.preContacts = newValue
+                // }
+                // if(this.contacts.length > 100){
+                //     this.contacts.splice(100,1)
+                // }
+                let contactStr = newValue.map(val => {
+                    if (!val.name) {
+                        return val.phoneNo
+                    } else {
+                        if (!val.name.startsWith('‘')) {
+                            val.name = '‘' + val.name + "’"
+                        }
+                        return val.name + " " + val.phoneNo
+                    }
+
+                })
+                this.contactStr = contactStr.join(";")
+            },
+            // contactStr(newValue){
+            //     let arr = newValue.split(',')
+            //     let param
+            //     this.contacts = arr.map(val=>{
+            //         param = val.trim().split(' ')
+            //         if (param.length==1){
+            //             return {name:'',phoneNo:param[0]}
+            //         } else{
+            //             return{name:param[0],phoneNo:param[1]}
+            //         }
+            //     })
+            // }
+
+        },
+        activated() {
+            this.infoPushFlag = this.$store.state.app.infoPushFlag
+            if (!this.infoPushFlag) {
+                setTimeout(() => {
+                    this.$store.commit('SET_INFO_PUSH_FLAG', true)
+                    this.infoPushFlag = true
+                }, 500)
+            }
+
+            // let map = this.$store.state.tagsView.cacheUrlMap
+            // let obj = {},
+            //     fullPath = this.$route.path
+            // let cache = map[fullPath]
+            // if (!cache) {
+                this.infoName = ''
+                this.contact = {}
+                this.contacts = []
+                this.contactStr = ''
+                this.timeStatus = false
+                this.preData = {
+                    suggestedResponse: '{}'
+                }
+                this.media = {}
+                this.mediaSelectFlag = false
+                this.pageTableData = []
+                this.getPasswayList();
+
+                this.dynamicTags = []
+                this.$refs.fileUpload.fileList = []
+                this.$refs.groupTree.setCheckedKeys([]);
+                this.checkedCities = []
+                this.contactsTags = []
+                this.tagIndex = 0;
+                this.isIndeterminate = true
+                this.checkAll = false
+                this.contactsIndex = 0
+            // }
+
+            // obj[fullPath] = fullPath
+            // this.$store.commit('tagsView/SET_CACHE_URL_MAP', obj)
+
+
+        },
+        mounted() {
+            this.scrollHeightLeft = document.documentElement.clientHeight - 50 - 50 - 40 - 33 - 10 + 'px'
+            this.scrollHeight = document.documentElement.clientHeight - 50 - 50 - 40 - 56 - 230 + 'px'
+            console.log('scrollHeight:', this.scrollHeight)
+            console.log('scrollHeightLeft:', this.scrollHeightLeft)
+            // this.getContacts(0, 1, '')
+            this.getPasswayList();
+            getValidBlackWhiteList({}).then(rsp => {
+                if (rsp.success) {
+                    if (rsp.data) {
+                        // type 1黑名单2白名单  mode 1=手动添加或导入的号码  2=号码段  3=正则表达式
+                        // console.log('blackWhite:',rsp)
+                        if (rsp.data) {
+                            this.blackWhite = rsp.data
+                        }
+
+                    }
+                }
+
+            })
+
+        }
+    }
+</script>
+
+<style lang="less">
+    .info-push {
+        display: flex;
+        box-sizing: border-box;
+
+        .handleSubmit {
+            margin-top: 10px;
+            margin-bottom: 0 !important;
+        }
+
+        .el-tree {
+            overflow: auto;
+        }
+
+        //滚动条样式
+        .el-tree::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        .el-tree::-webkit-scrollbar-thumb {
+            border-radius: 10px;
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .el-tree::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            border-radius: 0;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        /*height: calc(~'100vh - 180px');*/
+        .info-main {
+            flex: 1;
+
+            .info-pushOverflow {
+                overflow: auto;
+                padding-right: 10px;
+            }
+        }
+
+        //滚动条样式
+        .info-pushOverflow::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        .info-pushOverflow::-webkit-scrollbar-thumb {
+            border-radius: 10px;
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .info-pushOverflow::-webkit-scrollbar-track {
+            -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+            border-radius: 0;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .el-tag {
+            margin-bottom: 10px;
+            margin-right: 10px;
+        }
+
+        .button-new-tag {
+            margin-left: 10px;
+            height: 32px;
+            line-height: 30px;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        .el-upload-list {
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+
+            li {
+                width: 33%;
+            }
+        }
+
+        .el-upload-list__item:first-child {
+            margin-top: 5px;
+        }
+
+        .import-mobile-prompt {
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .template-prompt {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 0 15px;
+            width: 60%;
+            font-size: 12px;
+            border-radius: 50px;
+            border: 1px solid #e1e1e1;
+
+            .right {
+                cursor: pointer;
+            }
+        }
+
+        .template-any {
+            /*display: flex;*/
+            /*justify-content: center;*/
+            /*align-items: center;*/
+            /*height: 200px;*/
+            /*&>div{*/
+            /*display: flex;*/
+            /*flex-direction: column;*/
+            /*align-items: center;*/
+            /*cursor: pointer;*/
+            /*p{*/
+            /*font-size: 12px;*/
+            /*line-height: 24px;*/
+            /*}*/
+            /*}*/
+
+            .template-select {
+                display: flex;
+                justify-content: center;
+
+                &>div {
+                    padding: 80px 30px;
+                    text-align: center;
+                    cursor: pointer;
+
+                    p {
+                        font-size: 12px;
+                        margin-top: -5px;
+                        color: #999999;
+                    }
+                }
+            }
+
+            .select-content {
+                width: 280px;
+            }
+        }
+
+        .huiluo {
+            display: flex;
+
+            &>div:first-child {
+                margin-right: 15px;
+            }
+
+            .el-input--mini .el-input__inner {
+                width: 120px;
+            }
+        }
+
+        .total-fee {
+            span {
+                color: red;
+                font-size: 16px;
+            }
+        }
+
+        .warn {
+            display: flex;
+            padding-left: 40px;
+            font-size: 12px;
+            color: #999;
+            line-height: 20px;
+
+            .el-icon-warning {
+                margin-right: 4px;
+                margin-top: 4px;
+            }
+        }
+
+        .drawer-main {
+            display: flex;
+            flex-direction: column;
+            margin-left: 20px;
+            height: 100%;
+            position: relative;
+            width: 35%;
+
+            .contactsShow {
+                margin-top: 30px;
+                padding: 15px;
+                border: 1px solid #ccc;
+                border-radius: 10px;
+                height: 200px;
+                overflow-y: auto;
+
+                //滚动条样式
+                &::-webkit-scrollbar {
+                    width: 4px;
+                    height: 4px;
+                }
+
+                &::-webkit-scrollbar-thumb {
+                    border-radius: 10px;
+                    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                    background: rgba(0, 0, 0, 0.2);
+                }
+
+                &::-webkit-scrollbar-track {
+                    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                    border-radius: 0;
+                    background: rgba(0, 0, 0, 0.1);
+                }
+            }
+
+            .content {
+                max-height: calc(~'100vh - 80px');
+                overflow-y: auto;
+            }
+
+            .control {
+                margin-top: 5px;
+                text-align: center;
+            }
+
+            .el-tabs--border-card {
+                background: #FFF;
+                border: none;
+                box-shadow: none;
+            }
+
+            .el-tabs__item:focus.is-active.is-focus:not(:active) {
+                box-shadow: none;
+            }
+
+        }
+
+        .tag-wrap {
+            padding: 10px 10px 0 0;
+            overflow-y: auto;
+            max-height: 200px;
+            min-height: 100px;
+            margin-bottom: 5px;
+            border: 1px solid #e1e1e1;
+            border-radius: 4px;
+
+            .el-tag {
+                margin: 0 0 10px 10px;
+            }
+        }
+
+        .manually-add-wrapper {
+            margin-left: 110px;
+        }
+
+        .template-input {
+            margin-top: 15px;
+            margin-bottom: 10px;
+            width: 250px;
+        }
+
+        .item-desc {
+            position: relative;
+
+            h3 {
+                font-weight: normal;
+            }
+
+            .desc {
+                margin: 10px 0;
+                font-size: 12px;
+                line-height: 18px;
+            }
+
+            .bottom {
+                display: flex;
+                justify-content: space-between;
+                font-size: 12px;
+
+                .control {
+                    margin-top: -3px;
+                    font-size: 15px;
+
+                    i {
+                        margin: 0 3px;
+                        cursor: pointer;
+                    }
+                }
+            }
+
+            .time {
+                position: absolute;
+                top: -38px;
+                left: 2px;
+                padding: 2px 8px;
+                font-size: 12px;
+                color: white;
+                border-radius: 20px;
+                background-color: rgba(0, 0, 0, .6);
+            }
+        }
+
+        // .el-tag+.el-tag {
+        //     margin-left: 10px;
+        // }
+
+        .button-new-tag {
+            margin-left: 10px;
+            height: 32px;
+            line-height: 30px;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        .input-new-tag {
+            width: 180px;
+            margin-left: 10px;
+            vertical-align: bottom;
+        }
+
+        .el-carousel__container {
+            /*height: 200px;*/
+        }
+
+        .el-carousel__indicators {
+            display: none;
+        }
+
+        .el-dialog--center .el-dialog__body {
+            padding-top: 5px;
+        }
+
+        .el-table__body {
+            cursor: pointer;
+        }
+
+        /*hide select all*/
+        // thead .el-checkbox__inner{
+        //     display: none;
+        // }
+
+
+        .drop-enter,
+        .drop-leave-to {
+            opacity: 0;
+            transform: translateX(10px);
+        }
+
+        .drop-enter-active,
+        .drop-leave-active {
+            transition: all 0.6s ease;
+        }
+
+        .drop-move {
+            transform: scale(1.02);
+            transition: all 0.6s ease;
+        }
+
+        .drop-leave-active {
+            position: absolute;
+        }
+
+    }
+</style>

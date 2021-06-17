@@ -1,0 +1,888 @@
+<template>
+    <section class="member-manage wrap-container">
+        <el-form :inline="true" size="small">
+            <!-- <el-button type="text" size="small" @click="fixedMenu">固定菜单</el-button> -->
+            <el-form-item label="接入号">
+                <el-input clearable v-model="params.userId" placeholder="输入接入号搜索"></el-input>
+            </el-form-item>
+            <el-form-item label="机器人名称">
+                <el-input clearable v-model="params.chatbotName" placeholder="输入机器人名称搜索"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="search" icon="el-icon-search">查询</el-button>
+                <el-button type="primary"
+                    @click="dialogVisible = true;dialogTitle='新增机器人';channelModel={apiVersion:'v1'};">新增机器人</el-button>
+            </el-form-item>
+        </el-form>
+        <section class="data-main">
+            <div class="left">
+                <el-table :data="channelList" fit v-loading="tableLoading" size="small" border
+                    :header-cell-style="{'background-color': '#fafafa'}">
+                    <el-table-column prop="userId" label="接入号" align="center"></el-table-column>
+                    <el-table-column prop="chatbotName" label="机器人名称" align="center"></el-table-column>
+                    <el-table-column prop="appId" label="应用id" align="center"></el-table-column>
+                    <el-table-column prop="chatbotUpCheck" label="信息状态" align="center">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.chatbotUpCheck == 0">待审核</div>
+                            <div v-if="scope.row.chatbotUpCheck == 1">审核成功</div>
+                            <div v-if="scope.row.chatbotUpCheck == 2">审核失败</div>
+                            <div v-if="scope.row.chatbotUpCheck == 3">审核中</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="chatbotType" label="通道类型" align="center">
+                        <template slot-scope="scope">
+                            <div v-for="(item,index) in chotbotType" :key="'chatbot'+index"
+                                v-if="item.id == scope.row.chatbotType">{{item.name}}</div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="menuStatus" label="菜单状态" align="center">
+                        <template slot-scope="scope">
+                            <div v-if="scope.row.menuStatus == 0">待审核</div>
+                            <div v-if="scope.row.menuStatus == 1">审核成功</div>
+                            <div v-if="scope.row.menuStatus == 2">审核失败</div>
+                            <div v-if="scope.row.menuStatus == 3">审核中</div>
+                        </template>
+                    </el-table-column>
+                    <!-- 操作区 -->
+                    <el-table-column label="操作" align="center" width="230">
+                        <template slot-scope="scope">
+                            <el-button type="text" size="small" @click="fixedMenu(scope.row)">固定菜单</el-button>
+                            <el-button type="text" size="small" @click="toDetail(scope.row)">编辑</el-button>
+                            <el-button type="text" size="small" @click="deleteChannel(scope.row)">删除</el-button>
+                            <el-button type="text" size="small" @click="extensionInfo(scope.row,'edit')">编辑详细信息
+                            </el-button>
+                            <el-button type="text" size="small" @click="extensionInfo(scope.row,'query')">详细信息
+                            </el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </div>
+        </section>
+
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                :current-page="page.curPage" :page-sizes="[10, 15, 20, 30]" :page-size="page.size"
+                layout="total, sizes, prev, pager, next, jumper" :total="page.total">
+            </el-pagination>
+        </div>
+
+        <!-- 新增编辑 start -->
+        <el-dialog class="query-detail-dialog" :title="dialogTitle" :visible.sync="dialogVisible" width="40%" center
+            :close-on-click-modal="false">
+            <el-form label-width="150px" size="mini" :model="channelModel" :rules="rules" ref="chatbotForm" status-icon  class="demo-ruleForm">
+                <el-form-item label="机器人名称" prop="chatbotName">
+                    <el-input v-model="channelModel.chatbotName" placeholder="请输入机器人名称" maxlength="128"></el-input>
+                </el-form-item>
+                <el-form-item label="接入号" prop="userId">
+                    <el-input v-model="channelModel.userId" placeholder="请输入接入号" maxlength="128"></el-input>
+                </el-form-item>
+                <el-form-item label="应用id" prop="appId">
+                    <el-input v-model="channelModel.appId" placeholder="请输入应用id" maxlength="128"></el-input>
+                </el-form-item>
+                <el-form-item label="密码" prop="appSecret">
+                    <el-input v-model="channelModel.appSecret" maxlength="128" placeholder="请输入密码" autocomplete="off" show-password></el-input>
+                </el-form-item>
+                <el-form-item label="重复密码" prop="reAppSecret">
+                    <el-input v-model="channelModel.reAppSecret" maxlength="128" placeholder="请输入重复密码" autocomplete="off" show-password></el-input>
+                </el-form-item>
+                <el-form-item label="api版本号" prop="apiVersion">
+                    <el-input v-model="channelModel.apiVersion" placeholder="请输入api版本号" maxlength="128"></el-input>
+                </el-form-item>
+                <el-form-item label="服务器域名(IP)端口" prop="serverRoot">
+                    <el-input v-model="channelModel.serverRoot" placeholder="请输入域名服务器域名(IP)端口" maxlength="128">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="通道类型" prop="chatbotType">
+                    <el-select v-model="channelModel.chatbotType" placeholder="请选择通道类型">
+                        <el-option v-for="(item,index) in chotbotType" :key="'chatbotType'+index" :label="item.name"
+                            :value="item.id"></el-option>
+                    </el-select>
+                </el-form-item>
+                <!-- <el-form-item label="运营商类型" prop="carrier">
+                    <el-select v-model="channelModel.carrier" placeholder="请选择运营商类型">
+                        <el-option v-for="(item,index) in carrierList" :key="'carrier'+index" :label="item.name"
+                            :value="item.id"></el-option>
+                    </el-select>
+                </el-form-item> -->
+                <div v-if="carrierType == 2">
+                    <el-form-item label="csp编码" prop="cspId">
+                        <el-input v-model="channelModel.cspId" placeholder="请输入csp编码" maxlength="128"></el-input>
+                    </el-form-item>
+                    <el-form-item label="cspToken" prop="cspToken">
+                        <el-input v-model="channelModel.cspToken" placeholder="请输入cspToken" maxlength="128"></el-input>
+                    </el-form-item>
+                </div>
+                <div v-else-if="carrierType == 5">
+                    <el-form-item label="联通随机码" prop="ltToken">
+                        <el-input v-model="channelModel.ltToken" placeholder="请输入联通随机码" maxlength="128"></el-input>
+                    </el-form-item>
+                </div>
+                <!-- <el-form-item>
+                    <el-button @click="dialogVisible = false" size="small">取 消</el-button>
+                    <el-button type="primary" size="small" @click="saveChatbot">确 定</el-button>
+                </el-form-item> -->
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="dialogVisible = false" size="small">取 消</el-button>
+                <el-button type="primary" size="small" @click="saveChatbot">确 定</el-button>
+            </span>
+        </el-dialog>
+        <!-- 新增编辑 end -->
+
+        <!-- 固定菜单 start -->
+        <el-dialog class="query-detail-dialog" title="固定菜单" :visible.sync="fixedMenuBool" width="70%" center
+            :close-on-click-modal="false">
+            <chatbot-menu v-if="fixedMenuBool" :chatbotMenuId="chatbotMenuId" chatbotOperationType="1" @refreshList="refreshList" @cancel="cancel"></chatbot-menu>
+        </el-dialog>
+        <!-- 固定菜单 end -->
+
+        <!-- 详细信息 start -->
+        <el-dialog class="extensionInfo" :title="extensionTitle" :visible.sync="extensionVisible" width="40%" center
+            :close-on-click-modal="false">
+            <el-form label-width="150px" size="mini" :model="extension" ref="extensionForm">
+                <el-form-item label="服务描述" prop="serviceDescription">
+                    <el-input v-model="extension.serviceDescription" placeholder="请输入服务描述"></el-input>
+                </el-form-item>
+                <el-form-item label="机器人分类" prop="category">
+                    <el-input v-model="extension.category" placeholder="请输入机器人分类"></el-input>
+                </el-form-item>
+                <el-form-item label="回拨号码" prop="callBackNumber">
+                    <el-input v-model="extension.callBackNumber" placeholder="请输入回拨号码"></el-input>
+                </el-form-item>
+                <el-form-item label="机器人提供者信息" prop="provider">
+                    <el-input v-model="extension.provider" placeholder="请输入机器人提供者信息"></el-input>
+                </el-form-item>
+                <el-form-item label="地理位置经度" prop="longitude">
+                    <el-input v-model="extension.longitude" placeholder="请输入地理位置经度"></el-input>
+                </el-form-item>
+                <el-form-item label="地理位置纬度" prop="latitude">
+                    <el-input v-model="extension.latitude" placeholder="地理位置纬度"></el-input>
+                </el-form-item>
+                <el-form-item label="主题颜色" prop="themeColour">
+                    <el-input v-model="extension.themeColour" placeholder="请输入主题颜色"></el-input>
+                </el-form-item>
+                <el-form-item label="服务网站" prop="serviceWebsite">
+                    <el-input v-model="extension.serviceWebsite" placeholder="请输入服务网站"></el-input>
+                </el-form-item>
+                <el-form-item label="电子邮件" prop="emailAddress">
+                    <el-input v-model="extension.emailAddress" placeholder="请输入电子邮件"></el-input>
+                </el-form-item>
+                <el-form-item label="背景图像" prop="backgroundImage">
+                    <el-input v-model="extension.backgroundImage" placeholder="请输入背景图像"></el-input>
+                </el-form-item>
+                <el-form-item label="地址" prop="address">
+                    <el-input v-model="extension.address" placeholder="请输入地址"></el-input>
+                </el-form-item>
+                <el-form-item label="CSS 样式" prop="cssStyle" :class="extensionType != 'query' ? 'bottom-margin' : ''">
+                    <el-input v-model="extension.cssStyle" placeholder="请输入CSS 样式"></el-input>
+                </el-form-item>
+
+                <div v-if="extensionType == 'query'">
+                    <el-form-item label="接入号" prop="accessNo">
+                        <el-input v-model="extension.accessNo" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="域名" prop="domain">
+                        <el-input v-model="extension.domain" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="服务名称" prop="serviceName">
+                        <el-input v-model="extension.serviceName" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="服务图标" prop="serviceIcon">
+                        <el-input v-model="extension.serviceIcon" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="认证条款和条件" prop="TCPage">
+                        <el-input v-model="extension.TCPage" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="SMS 号码" prop="SMSNumber">
+                        <el-input v-model="extension.SMSNumber" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="认证状态" prop="verified">
+                        <div v-if="extension.verified">已认证</div>
+                        <div v-else>未认证</div>
+                    </el-form-item>
+                    <el-form-item label="认证主体名" prop="authName">
+                        <el-input v-model="extension.authName" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="认证有效期" prop="authExpires">
+                        <el-input v-model="extension.authExpires" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="认证机构" prop="authOrg">
+                        <el-input v-model="extension.authOrg" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="Chatbot 状态" prop="status">
+                        <div v-if="extension.status == 0">正常</div>
+                        <div v-if="extension.status == 1">调试</div>
+                        <div v-if="extension.status == 2">暂停</div>
+                    </el-form-item>
+                    <el-form-item label="特殊 Chatbot" prop="criticalChatbot">
+                        <div v-if="extension.criticalChatbot">应急 Chatbot</div>
+                        <div v-else>非应急 Chatbot</div>
+                    </el-form-item>
+                    <el-form-item label="Chatbot 回调地址" prop="url">
+                        <el-input v-model="extension.url" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="机器人版本号" prop="version">
+                        <el-input v-model="extension.version" readonly></el-input>
+                    </el-form-item>
+                    <el-form-item label="菜单" prop="menu" class="bottom-margin">
+                        <el-input v-model="extension.menu" readonly></el-input>
+                    </el-form-item>
+                </div>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="extensionVisible = false" size="small">取 消</el-button>
+                <el-button type="primary" v-if="extensionType != 'query'" size="small" @click="addExtension">确 定
+                </el-button>
+            </span>
+        </el-dialog>
+        <!-- 详细信息 end -->
+
+    </section>
+</template>
+
+<script>
+    import {
+        addPassway,
+        modPassway,
+        modPasswayMenu,
+        delPassway,
+        getPassway,
+        getPasswayList,
+        getChotbotType,
+        getPasswayMenu,
+        getPasswayExp,
+        modPasswayExp
+    } from '../../api/api'
+    import chatbotMenu from '../components/chatbotMenu/index'
+    export default {
+        name: "ChannelManage",
+        components: {
+            chatbotMenu
+        },
+        data() {
+            var validatePass2 = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请再次输入密码'));
+                } else if (value !== this.channelModel.appSecret) {
+                    callback(new Error('两次输入密码不一致!'));
+                } else {
+                    callback();
+                }
+            };
+            return {
+                rules: {
+                    userId: [{
+                        required: true,
+                        message: '请输入接入号',
+                        trigger: 'blur'
+                    }],
+                    chatbotName: [{
+                        required: true,
+                        message: '请输入机器人名称',
+                        trigger: 'blur'
+                    }],
+                    appId: [{
+                        required: true,
+                        message: '请输入应用id',
+                        trigger: 'blur'
+                    }],
+                    appSecret: [
+                        {
+                            required: true,
+                            message: '请输入密码',
+                            trigger: 'blur'
+                        },
+                        {
+                            pattern: /^[\S]{6}$/,
+                            message: '密码长度要大于6位'
+                        }
+                    ],
+                    reAppSecret: [{
+                        required: true,
+                        validator: validatePass2,
+                        trigger: 'blur'
+                    }],
+                    chatbotType: [{
+                        required: true,
+                        message: '请选择通道类型',
+                        trigger: 'change'
+                    }],
+                    apiVersion: [{
+                        required: true,
+                        message: '请输入api版本号',
+                        trigger: 'blur'
+                    }],
+                    serverRoot: [{
+                        required: true,
+                        message: '请输入服务器域名(IP)端口',
+                        trigger: 'blur'
+                    }],
+                    cspId: [{
+                        required: true,
+                        message: '请输入csp编码',
+                        trigger: 'blur'
+                    }],
+                    cspToken: [{
+                        required: true,
+                        message: '请输入cspToken',
+                        trigger: 'blur'
+                    }],
+                    ltToken: [{
+                        required: true,
+                        message: '请输入联通随机码',
+                        trigger: 'blur'
+                    }],
+                },
+                carrierType: 0,
+                menuType: 'N1',
+                channelList: [],
+                params: {
+                    userId: '',
+                    chatbotName: '',
+                    menuStatus: ''
+                },
+                tableLoading: false,
+                page: {
+                    curPage: 1,
+                    size: 10,
+                    total: 0
+                }, // 传入后台参数
+                dialogForm: {},
+                popVisible: false,
+                groupName: '',
+                groupId: 0,
+                roleMap: {},
+                channelModel: {
+                    appSecret:'',
+                    reAppSecret:''
+                },
+                dialogVisible: false,
+                fixedMenuBool: false,
+                dialogTitle: '详情',
+
+                addMenuIndex: 0,
+                childrenAddMenuIndex: 0,
+                addMenuList: [],
+                editMenuForm: {
+                    menuType: 'N1',
+                    displayText: '',
+                    data: '',
+                    url: '',
+                    phoneNumber: '',
+                    latitude: '',
+                    longitude: '',
+                    query: '',
+                    label: '',
+                    requestLocationPush: '',
+                    dateTime: [],
+                    title: '',
+                    description: '',
+                    text: '',
+                    phoneType: '',
+                    enableDisplayedNotifications: ''
+                },
+                MenuNameBool: 'parent',
+                menuId: 0,
+                idIndex: 0,
+                childrenIdIndex: 0,
+                cunChuOneMenu: {},
+                copyMenuJson: '',
+                chotbotType: [],
+                chatbotList: {},
+                editContentBool: false,
+                menuContentBool: true,
+                relationIndex: -1,
+
+                extensionVisible: false,
+                extension: {},
+                extensionId: 0,
+                extensionType: '',
+                extensionTitle: '',
+                chatbotMenuId:0
+            }
+        },
+        watch: {
+            "channelModel.chatbotType"(val) {
+                this.carrierType = val
+            }
+        },
+        methods: {
+            //关闭固定菜单窗口
+            cancel(fixedMenuBool){
+                this.fixedMenuBool = fixedMenuBool
+            },
+            //刷新列表
+            refreshList(){
+                this.loadData()
+            },
+
+            // 新增详细信息
+            addExtension() {
+                let param = {
+                    id: this.extensionId
+                }
+                Object.assign(param, this.extension)
+                modPasswayExp(param).then(res => {
+                    if (res.success) {
+                        this.$message.success("新增成功")
+                        this.extensionVisible = false
+                    } else {
+                        this.$message.error(res.message)
+                    }
+                })
+            },
+            extensionInfo(row, editOrQuery) {
+                this.extensionType = editOrQuery
+                if (editOrQuery == 'query') {
+                    this.extensionTitle = '详细信息'
+                } else {
+                    this.extensionTitle = '编辑详细信息'
+                }
+                this.extensionVisible = true
+                this.extensionId = row.id
+                getPasswayExp({
+                    id: row.id
+                }).then(res => {
+                    if (res.success) {
+                        let chatbotExp = JSON.parse(res.data.chatbotExp)
+                        console.log('chatbotExp:::', chatbotExp)
+                        this.extension = chatbotExp
+
+                        if (editOrQuery == 'query') {
+                            this.extension.menu = JSON.stringify(this.extension.menu)
+                        }
+                    }
+                })
+            },
+
+            //通道类型
+            getChotbotType() {
+                getChotbotType().then(rsp => {
+                    this.chotbotType = rsp.data
+                })
+            },
+            handleCurrentChange: function(currentPage) { //改变当前页
+                this.page.curPage = currentPage
+                this.loadData()
+            },
+            handleSizeChange: function(size) { //改变页面size
+                this.page.size = size;
+                this.loadData()
+            },
+            search() {
+                this.loadData()
+            },
+            fixedMenu(row) {
+                // console.log('row---:', row)
+                this.chatbotMenuId = row.id
+                this.fixedMenuBool = true;
+            },
+            toDetail(channel) {
+                this.dialogVisible = true
+                this.dialogTitle = '编辑通道'
+                this.channelModel = Object.assign({}, channel)
+
+            },
+            deleteChannel(channel) {
+                this.$confirm('此操作将永久删除该通道, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    delPassway({
+                        id: channel.id
+                    }).then(rsp => {
+                        if (rsp.success) {
+                            this.$message({
+                                type: 'success',
+                                message: '删除成功!'
+                            });
+                            this.loadData()
+                        }
+                    })
+                }).catch(() => {});
+            },
+
+            loadData() {
+                let param = {
+                    curPage: this.page.curPage,
+                    size: this.page.size
+                }
+                Object.assign(param, this.params)
+                this.tableLoading = true
+                getPasswayList(param).then(rsp => {
+                    console.log('channel resp:', rsp)
+                    this.tableLoading = false
+                    this.channelList = rsp.data.records
+                    this.page.total = rsp.data.total
+                })
+            },
+            saveChatbot() {
+                this.$refs.chatbotForm.validate(valid => {
+                    if (valid) {
+                        if (this.channelModel.id) {
+                            modPassway(this.channelModel).then(rsp => {
+                                if (rsp.success) {
+                                    this.dialogVisible = false
+                                    this.$message.success('编辑成功')
+                                    this.loadData()
+                                } else {
+                                    this.$message.error(rsp.message)
+                                }
+                            })
+                        } else {
+                            addPassway(this.channelModel).then(rsp => {
+                                if (rsp.success) {
+                                    this.dialogVisible = false
+                                    this.$message.success('新增成功')
+                                    this.loadData()
+                                } else {
+                                    this.$message.error(rsp.message)
+                                }
+                            })
+                        }
+                    }
+                })
+
+            }
+        },
+        mounted() {
+
+        },
+        activated() {
+            this.loadData();
+            this.getChotbotType();
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 50 - 40 - 51 - 60 - 47 + 'px'
+        }
+    }
+</script>
+
+<style lang="less">
+    .member-manage {
+        .el-dialog__footer {
+            text-align: center !important;
+        }
+
+        .addChatbot {
+            .el-dialog {
+                margin-top: 10vh !important;
+                width: 60%;
+                overflow: hidden;
+                height: 82%;
+
+                .el-dialog__body {
+                    height: 85%;
+                    overflow: auto;
+
+                    &::-webkit-scrollbar {
+                        width: 4px;
+                        height: 0px;
+                    }
+
+                    &::-webkit-scrollbar-thumb {
+                        border-radius: 10px;
+                        -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                        background: rgba(0, 0, 0, 0.2);
+                    }
+
+                    &::-webkit-scrollbar-track {
+                        -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                        border-radius: 0;
+                        background: rgba(0, 0, 0, 0.1);
+                    }
+                }
+            }
+        }
+
+        .extensionInfo {
+            .el-dialog {
+                margin-top: 12vh !important;
+
+                .el-dialog__body {
+                    overflow: auto;
+                    height: 600px;
+
+                    .bottom-margin {
+                        margin-bottom: 0 !important;
+                    }
+                }
+            }
+        }
+
+        .el-table__body-wrapper {
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        .editMenu {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 80%;
+            height: 560px;
+            padding: 20px;
+            text-align: left;
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 4px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+
+
+            .el-input__inner {
+                width: 100%;
+            }
+
+            .menuMargin {
+                margin-top: 10px;
+            }
+
+            .menuLineHeight {
+                line-height: 40px;
+            }
+
+            .newMenu {
+                padding-bottom: 10px;
+                border-bottom: 1px solid #ccc;
+            }
+
+            >div {
+                margin-bottom: 15px;
+            }
+        }
+
+        .preview-resource {
+            .preview {
+                width: 300px;
+                margin: auto;
+
+                .mobile-header {
+                    height: 60px;
+                    border-radius: 15px 15px 0 0;
+                    background-color: #333333;
+                    text-align: center;
+
+                    &::before {
+                        display: inline-block;
+                        width: 6px;
+                        height: 6px;
+                        margin: 27px 6px;
+                        background-color: white;
+                        border-radius: 50%;
+                        content: '';
+                    }
+
+                    &::after {
+                        display: inline-block;
+                        width: 30px;
+                        height: 6px;
+                        margin: 27px 6px;
+                        background-color: white;
+                        border-radius: 20px;
+                        content: '';
+                    }
+                }
+
+                .mobile-main {
+                    height: 440px;
+                    // padding: 10px 15px;
+                    border: 1px solid #e1e1e1;
+                    position: relative;
+                    border-width: 0 1px 0 1px;
+                    overflow-y: auto;
+
+                    .box {
+                        display: flex;
+                        background-color: #f5f5f5;
+                        text-align: center;
+                        border-top: 1px solid #ccc;
+
+                        >div {
+                            border-right: 1px solid #ccc;
+                            padding: 10px;
+                            cursor: pointer;
+                            position: relative;
+                        }
+
+                        .addMenu {
+                            padding: 10px 14px !important;
+
+                            .menuOverflow {
+                                overflow: hidden;
+                                width: 56px;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                        }
+
+                        >div:last-child {
+                            // border-top: 1px solid #ccc;
+                            border-right: 0px solid #ccc;
+
+                        }
+
+                        .childrenMenu {
+                            background-color: #fff;
+                            position: absolute;
+                            left: 0;
+                            border-radius: 5px;
+                            box-shadow: 0 0 5px #ccc;
+
+                            >div {
+                                padding: 7px;
+                                font-size: 12px;
+                                border-bottom: 1px solid #ccc;
+
+                                >div {
+                                    overflow: hidden;
+                                    width: 66px;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                }
+                            }
+
+                        }
+                    }
+
+                    .title-m {
+                        display: flex;
+                        align-items: center;
+                        padding: 5px 0 12px 0;
+                        font-size: 14px;
+                        color: #66b1ff;
+
+                        img {
+                            height: 24px;
+                            margin-right: 6px;
+                        }
+
+                    }
+
+                    .item-desc {
+                        .desc {
+                            margin-top: -11px;
+                            padding: 10px 0;
+                            font-size: 14px;
+                            line-height: 20px;
+
+                            /*background-color: #f1f1f1;*/
+                            h3 {
+                                padding: 8px 10px;
+                                font-size: 15px;
+                                color: #303133;
+                                text-align: center;
+                            }
+
+                            p {
+                                margin: 10px 0;
+                                padding: 0 10px;
+                                max-height: 80px;
+                                overflow-y: auto;
+                            }
+
+                            .button {
+                                width: 80%;
+                                margin: 5px auto 8px auto;
+                                /*line-height: 34px;*/
+                                font-size: 14px;
+                                background-color: white;
+                                border-radius: 10px;
+                                text-align: center;
+                            }
+                        }
+                    }
+
+                    .text {
+                        .desc {
+                            margin-top: 0px;
+
+                            h3 {
+                                padding-top: 0;
+                            }
+                        }
+                    }
+
+                    .image,
+                    .video {
+                        .desc {
+                            margin-top: 0px;
+                            padding-top: 0;
+
+                            h3 {
+                                padding-bottom: 2px;
+                            }
+                        }
+
+                    }
+
+                    .suggest {
+                        display: inline-block;
+                        padding: 0 10px;
+                        height: 20px;
+                        line-height: 20px;
+                        font-size: 12px;
+                        border-radius: 4px;
+                        margin-right: 10px;
+                        background-color: #f1f1f1;
+                    }
+                }
+
+                .mobile-footer {
+                    height: 60px;
+                    border-radius: 0 0 15px 15px;
+                    background-color: #333333;
+                    text-align: center;
+
+                    &::before {
+                        display: inline-block;
+                        width: 36px;
+                        height: 36px;
+                        margin-top: 12px;
+                        border: 2px solid white;
+                        border-radius: 50%;
+                        content: '';
+                    }
+                }
+            }
+
+            .scrollbar::-webkit-scrollbar {
+                width: 1px;
+            }
+
+            .desc .scrollbar::-webkit-scrollbar {
+                width: 4px;
+            }
+        }
+    }
+</style>

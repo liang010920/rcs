@@ -1,0 +1,680 @@
+<template>
+    <section class="user-manage wrap-container">
+        <div>
+            <el-row>
+                <el-col :span="3">
+                    <div :style="{height:scrollHeight}" class="typeGroup">
+                        <div>
+                            <el-button :type="selectGroupIndex == -1 ? 'primary':''" size="small" class="allGroup" @click="selectAllGroup">全部
+                                ({{selectAllGroupIndex}})</el-button>
+                            <div :key="'item'+index" v-for="(item,index) in groupList">
+                                <el-input v-show='index == groupInputIndex' class="input-new" ref="saveButtonInput" size="small"
+                                    v-model="inputValue" @keyup.enter.native="handleInputConfirm(item)" @blur="handleInputConfirm(item)"></el-input>
+                                <el-button v-show='index != groupInputIndex' size="small" :type="index == selectGroupIndex ? 'primary':''"
+                                    class="button-new" @click="selectGroup(item,index)">
+                                    {{item.name}} ({{item.itemCount}})
+                                    <span v-show="item.name != '未分组'" class="groupEdit">
+                                        <span class="el-icon-edit" @click="showGroupInput(item.name,index)"></span>
+                                        <span class="el-icon-delete" @click="handleClose(item.id)"></span>
+                                    </span>
+                                </el-button>
+                            </div>
+                            <el-input class="input-new-tag" v-if="inputVisible" v-model="inputValue" ref="saveTagInput" size="small"
+                                @keyup.enter.native="handleInputConfirm" @blur="handleInputConfirm">
+                            </el-input>
+                            <el-button v-else class="button-new-tag" size="small" @click="showInput">+ 添加分组</el-button>
+                        </div>
+                    </div>
+                </el-col>
+                <el-col :span="21">
+                    <div>
+                        <el-form :inline="true" size="small">
+
+                            <el-form-item label="登录账号">
+                                <el-input clearable v-model="params.userName" placeholder="输入登录账号搜索"></el-input>
+                            </el-form-item>
+                            <el-form-item label="姓名">
+                                <el-input clearable v-model="params.realName" placeholder="输入姓名搜索"></el-input>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button type="primary" @click="search" icon="el-icon-search">查询</el-button>
+                                <el-button type="primary" @click="addAccount">添加账户</el-button>
+                            </el-form-item>
+                        </el-form>
+                        <!-- 列表区 -->
+                        <el-table :data="accountList" fit v-loading="tableLoading" size="small" border :header-cell-style="{'background-color': '#fafafa'}">
+                            <el-table-column prop="userName" label="登录账号" align="center"></el-table-column>
+                            <el-table-column prop="roleId" label="角色" align="center">
+                                <template slot-scope="scope">
+                                    <template v-for="id in scope.row.roleId">
+                                        <span>{{roleMap[id]}} </span>
+                                    </template>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="realName" label="姓名" align="center"></el-table-column>
+                            <el-table-column prop="mobile" label="手机号码" align="center"></el-table-column>
+                            <el-table-column prop="createTime" label="添加时间" align="center"></el-table-column>
+                            <!-- 操作区 -->
+                            <el-table-column label="操作" align="center">
+                                <template slot-scope="scope">
+                                    <el-button type="text" size="small" @click="resetPwd(scope.row)">重置密码</el-button>
+                                    <el-button type="text" size="small" @click="editAccount(1,scope.row)">编辑</el-button>
+                                    <el-button type="text" size="small" @click="editAccount(2,scope.row)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </el-col>
+            </el-row>
+        </div>
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="page.current"
+                :page-sizes="[10, 15, 20, 30]" :page-size="page.size" layout="total, sizes, prev, pager, next, jumper"
+                :total="page.total">
+            </el-pagination>
+        </div>
+
+        <!-- 编辑区 -->
+        <el-dialog :title="operationTips" :visible.sync="editDialog" width="40%" :close-on-click-modal="false">
+            <el-form label-width="80px" size="small">
+                <el-form-item label="登录账号" v-if="null == admin.id" class="is-required">
+                    <el-input size="small" v-model="admin.userName" placeholder="请输入登录账号"></el-input>
+                </el-form-item>
+                <el-form-item label="登录密码" v-if="null == admin.id" class="is-required">
+                    <el-input size="small" v-model="admin.password" placeholder="请输入密码" show-password></el-input>
+                </el-form-item>
+                <el-form-item label="姓名" class="is-required">
+                    <el-input size="small" v-model="admin.realName" placeholder="请输入姓名"></el-input>
+                </el-form-item>
+                <el-form-item label="手机号码" class="is-required">
+                    <el-input size="small" v-model="admin.mobile" placeholder="请输入手机号码" type="number"></el-input>
+                </el-form-item>
+                <el-form-item label="角色" class="is-required">
+                    <el-select v-model="admin.roleId" placeholder="请选择角色类型" multiple size="medium" :disabled="admin.editRoleId==1">
+                        <el-option v-for="item in roleList" :key="item.id" :label="item.name" :value="item.id">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="用户分组" class="is-required">
+                    <el-select v-model="admin.groupId" placeholder="请选择用户分组" size="medium" @change="change">
+                        <el-option v-for="item in groupList" :key="item.id" :label="item.name" :value="item.id">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+
+            <span slot="footer" class="dialog-footer">
+                <el-button size="small" @click="editDialog = false">取 消</el-button>
+                <el-button size="small" type="primary" @click="saveAccount()">确 定</el-button>
+            </span>
+        </el-dialog>
+
+        <!-- 重置密码 -->
+        <el-dialog class="reset" title="重置密码" :visible.sync="resetPwdDialog" width="35%" :close-on-click-modal="false">
+            <el-form :model="ruleForm" status-icon :rules="rules" ref="ruleForm" label-width="100px" class="demo-ruleForm">
+                <el-form-item label="新密码" prop="newPassword">
+                    <el-input type="password" v-model="ruleForm.newPassword" autocomplete="off" show-password></el-input>
+                </el-form-item>
+                <el-form-item label="确认新密码" prop="rePassword">
+                    <el-input type="password" v-model="ruleForm.rePassword" autocomplete="off" show-password></el-input>
+                </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="resetPwdDialog = false">取 消</el-button>
+                <el-button type="primary" @click="submitPwd()">确 定</el-button>
+            </span>
+        </el-dialog>
+
+    </section>
+</template>
+
+<script>
+    import {
+        getUserList,
+        delUser,
+        getRoleList,
+        addUser,
+        modUser,
+        customerModPassword,
+        addGroup,
+        editGroup,
+        deleteGroup,
+        getGroupListAdditionCount,
+        getGroupItemCount
+    } from '../../api/api.js'
+    import {
+        Utils
+    } from '../../plugins/utils'
+    import {
+        mapGetters
+    } from 'vuex'
+    export default {
+        data() {
+            var validatePass = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请输入密码'));
+                } else {
+                    if (this.ruleForm.rePassword !== '') {
+                        this.$refs.ruleForm.validateField('rePassword');
+                    }
+                    callback();
+                }
+            };
+            var validatePass2 = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请再次输入密码'));
+                } else if (value !== this.ruleForm.newPassword) {
+                    callback(new Error('两次输入密码不一致!'));
+                } else {
+                    callback();
+                }
+            };
+            return {
+                ruleForm: {
+                    id: '',
+                    newPassword: '',
+                    rePassword: ''
+                },
+                rules: {
+                    newPassword: [{
+                        validator: validatePass,
+                        trigger: 'blur'
+                    }, {
+                            pattern: /^[\S]{6,}$/,
+                            message: '密码长度要大于6位'
+                        }],
+                    rePassword: [{
+                        validator: validatePass2,
+                        trigger: 'blur'
+                    }]
+                },
+                page: { //页码区
+                    curPage: 1,
+                    size: 10,
+                    total: 0,
+                },
+                editDialog: false,
+                tableLoading: false,
+                accountList: [],
+                roleList: [],
+                admin: {
+                    groupId: 0
+                },
+                operationTips: '账号设置',
+                placeholderDesc: '请输入密码',
+                operationType: Number, //1编辑  2 删除
+                roleId: '',
+                params: {
+                    userName: '',
+                    realName: ''
+                },
+                roleMap: {},
+                ut: new Utils(),
+                resetPwdDialog: false,
+                scrollHeight: '',
+                groupList: [],
+                inputVisible: false,
+                inputValue: '',
+                groupId: 0,
+                groupName: '',
+                groupInputIndex: -1,
+                tableScrollHeight: '',
+                selectGroupIndex: -1,
+                selectAllGroupIndex: 0,
+                editIndex: 0
+            }
+        },
+        computed: {
+            ...mapGetters([
+                'menuList',
+                'customerId',
+                'userId'
+            ]),
+        },
+        methods: {
+            change() {
+                this.$forceUpdate()
+                console.log('this.form.catalogId:', this.form.catalogId)
+            },
+            getGroupItemCount() {
+                getGroupItemCount({
+                    groupType: 'USER',
+                    groupId: 0
+                }).then(res => {
+                    this.selectAllGroupIndex = res.code
+                })
+            },
+            getGroupListAdditionCount() {
+                getGroupListAdditionCount({
+                    groupType: 'USER'
+                }).then(res => {
+                    // console.log('groupList:', res)
+                    this.groupList = res.data
+                })
+            },
+            selectAllGroup() {
+                this.selectGroupIndex = -1
+                this.groupId = 0
+                this.loadData()
+            },
+            selectGroup(item, index) {
+                this.selectGroupIndex = index
+                this.groupId = item.id
+                this.loadData()
+            },
+
+            handleClose(id) {
+                this.$confirm('确定删除此分组吗，此操作不可恢复！', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    deleteGroup({
+                        groupType: 'USER',
+                        groupId: id
+                    }).then(res => {
+                        if (res.success) {
+                            this.selectGroupIndex = -1
+                            this.groupId = 0
+                            this.getGroupListAdditionCount()
+                            this.loadData()
+                            this.getGroupItemCount()
+                            this.$message.success('删除成功')
+                            // this.groupList.splice(this.groupList.indexOf(tag.id), 1);
+                        }
+                    })
+                })
+            },
+
+            showInput() {
+                this.inputVisible = true;
+                this.$nextTick(_ => {
+                    this.$refs.saveTagInput.$refs.input.focus();
+                });
+            },
+
+            showGroupInput(name, index) {
+                this.groupInputIndex = index
+                this.inputValue = name
+                console.log('this.$refs.saveButtonInput[index].$refs:', this.$refs.saveButtonInput)
+                this.$nextTick(_ => {
+                    this.$refs.saveButtonInput[index].$refs.input.focus();
+                });
+            },
+
+            handleInputConfirm(tag) {
+                let inputValue = this.inputValue;
+                let groupId = tag.id
+                if (inputValue) {
+                    if (groupId == undefined) {
+                        addGroup({
+                            name: inputValue,
+                            groupType: 'USER'
+                        }).then(res => {
+                            if (res.success) {
+                                this.getGroupListAdditionCount()
+                                this.$message.success('新增成功')
+                            }
+                        })
+                    } else {
+                        editGroup({
+                            groupId: groupId,
+                            name: inputValue,
+                            groupType: 'USER'
+                        }).then(res => {
+                            if (res.success) {
+                                this.getGroupListAdditionCount()
+                                this.$message.success('修改成功')
+                            }
+                        })
+                    }
+                }
+
+                this.inputVisible = false;
+                this.groupInputIndex = -1;
+                this.inputValue = '';
+            },
+            resetPwd(row) {
+                this.resetPwdDialog = true;
+                this.ruleForm.id = row.id.toString();
+                console.log('row:---', row)
+                // this.ruleForm={
+                //     newPassword: '',
+                //     rePassword: ''
+                // }
+                this.ruleForm.newPassword = ''
+                this.ruleForm.rePassword = ''
+            },
+            submitPwd() {
+                this.$refs.ruleForm.validate(valid => {
+                    if (valid) {
+                        customerModPassword(this.ruleForm).then(res => {
+                            if (res.success) {
+                                this.$message.success('密码重置成功')
+                                this.resetPwdDialog = false
+                                console.log('userID:', this.$store.state.user.userId)
+                                console.log('id:', this.ruleForm.id)
+                                if (this.$store.state.user.userId == this.ruleForm.id) {
+                                    this.$router.push({
+                                        path: '/customerLogin'
+                                    })
+                                }
+                                // if (this.customerId != -1) {
+                                //     this.$router.push({
+                                //         path: '/customerLogin'
+                                //     })
+                                // }
+                            }
+                        })
+                    }
+                })
+            },
+            clearParams: function() { //初始化,因为如果是修改后新增，会残留字段
+                this.admin = {
+                    password: ''
+                }
+            },
+            handleCurrentChange: function(currentPage) { //改变当前页
+                let _self = this
+                _self.page.curPage = currentPage
+                _self.loadData()
+            },
+            handleSizeChange: function(size) { //改变页面size
+                let _self = this
+                _self.page.size = size;
+                _self.loadData()
+            },
+
+            search() {
+                this.loadData()
+            },
+            addAccount: function() { //添加账号
+                let _self = this
+                _self.clearParams() //初始化,因为如果是修改后新增，会残留字段
+                _self.editDialog = true
+                _self.operationTips = '添加账号'
+                _self.placeholderDesc = '请输入密码'
+                _self.roleId = '';
+                this.getGroupListAdditionCount()
+                this.getRoleList()
+                this.admin.groupId = this.groupId
+                if (this.admin.groupId == 0) {
+                    this.admin.groupId = this.groupList[0].id
+                }
+            },
+            editAccount: function(type, row) { //编辑、删除
+                let _self = this
+                _self.operationTips = '编辑账号'
+                _self.admin = Object.assign({}, row)
+                _self.admin.password = null
+                _self.operationType = type
+                this.getRoleList()
+                if (_self.operationType == 1) { //编辑
+                    _self.editDialog = true
+                    _self.admin.roleId = _self.admin.roleId.map(Number)
+                    _self.admin.roleId.map(val=>{
+                        _self.admin.editRoleId = val == 1 ? 1 : 0
+                    })
+                    console.log(_self.admin.roleId)
+                } else if (_self.operationType == 2) { //删除
+                    _self.$confirm('确定删除吗，此操作不可恢复！', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        _self.admin.status = 0 //删除
+                        _self.deleteAccount(row)
+                        this.getGroupListAdditionCount()
+                    }).catch(() => {
+                        //取消
+                    });
+                }
+            },
+            deleteAccount(account) {
+                delUser({
+                    userId: account.id
+                }).then(rsp => {
+                    if (rsp.success) {
+                        this.$message.success('删除成功')
+                        this.editIndex = 1
+                        this.groupId = 0
+                        this.selectGroupIndex = -1
+                        this.loadData()
+                        this.getGroupListAdditionCount()
+                    } else {
+                        this.$message.success(rsp.message)
+                    }
+                })
+            },
+            saveAccount: function() { //保存账号
+                let _self = this
+                if (this.ut.isEmpty(_self.admin.userName)) {
+                    _self.$message.error("登录账号不能为空");
+                    return
+                }
+
+                if (this.ut.isEmpty(_self.admin.mobile) || _self.admin.mobile.length != 11) {
+                    _self.$message.error("手机号格式不正确");
+                    return
+                }
+
+
+                if (this.ut.isEmpty(_self.admin.realName)) {
+                    _self.$message.error("姓名不能为空");
+                    return
+                }
+
+                if (_self.admin.roleId == '' || _self.admin.roleId == null || _self.admin.roleId.length == 0) {
+                    _self.$message.error("请选择角色");
+                    return
+                }
+                _self.admin.roleId = _self.admin.roleId.join()
+
+                if (_self.admin.id) {
+                    _self.admin.userId = _self.admin.id
+                    modUser(_self.admin).then(rsp => {
+                        if (rsp.success) {
+                            this.$message.success('修改成功')
+                            this.getGroupItemCount()
+                            this.loadData() //刷新
+                            this.getGroupListAdditionCount()
+                            this.editDialog = false
+                        } else {
+                            this.$message.error(rsp.message);
+                        }
+                    })
+                } else {
+                    addUser(_self.admin).then(rsp => {
+                        if (rsp.success) {
+                            this.$message.success('添加成功')
+                            this.getGroupItemCount()
+                            this.loadData() //刷新
+                            this.getGroupListAdditionCount()
+                            this.editDialog = false
+                        } else {
+                            this.$message.error(rsp.message);
+                        }
+                    })
+                }
+
+            },
+            loadData: function() { //加载列表
+                let param = {
+                    curPage: this.page.curPage,
+                    size: this.page.size,
+                    customerId: this.customerId,
+                    id: this.groupId
+                }
+                Object.assign(param, this.params)
+                this.tableLoading = true
+                this.accountList = [];
+                getUserList(param).then(rsp => {
+                    console.log('userList', rsp)
+                    this.tableLoading = false
+                    if (rsp.success) {
+                        this.accountList = rsp.data.records;
+                        this.getGroupListAdditionCount()
+                        // this.accountList = rsp.data.filter(val => val.id != 1 && (val.id != this.userId))
+                        console.log('this.accountList', this.accountList)
+                        this.accountList.forEach(val => {
+                            val.roleId = val.roleId.split(',')
+                        })
+                        this.page.total = rsp.data.total
+                    } else {
+                        this.$message.error(rsp.message);
+                    }
+                })
+            },
+            getRoleList() {
+                getRoleList({
+                    curPage: 1,
+                    size: 10
+                }).then(rsp => {
+                    if (rsp.success) {
+                        // this.roleList = rsp.data.filter(val => val.id != 1)
+                        // this.roleList.forEach(val => {
+                        //     this.$set(this.roleMap, val.id, val.name)
+                        //     val.id = val.id + ''
+                        // })
+                        this.roleList = rsp.data
+                    }
+                })
+            },
+        },
+        activated() {
+            this.loadData()
+            this.getGroupListAdditionCount();
+            this.getRoleList()
+            this.getGroupItemCount()
+            this.scrollHeight = document.documentElement.clientHeight - 50 - 50 - 40 - 32 - 15 + 'px'
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement.clientHeight -
+                50 - 50 - 40 - 52 - 60 - 47 + 'px'
+        },
+        mounted() {
+
+            // this.tableScrollHeight = document.documentElement.clientHeight - 50 - 85 - 40 - 30 - 91 + 'px'
+            // document.getElementsByClassName('is-scrolling-none')[0].style.height = this.tableScrollHeight
+            // document.getElementsByClassName('el-table__body-wrapper')[0].style.position = ''
+            // document.getElementsByClassName('el-table__body-wrapper')[0].style.overflow = 'auto'
+            // document.getElementsByClassName('is-scrolling-none')[0].style.overflow = 'auto'
+        }
+    }
+</script>
+<style lang="less">
+    .user-manage {
+        .el-dialog__footer{
+            text-align: center;
+        }
+        label {
+            margin-bottom: 0;
+        }
+        .el-table__body-wrapper{
+            overflow: auto;
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        .typeGroup {
+            margin-right: 15px;
+            overflow: auto;
+
+            .allGroup {
+                margin-bottom: 18px;
+                text-align: left;
+                width: 100%;
+            }
+
+            .el-button+.el-button {
+                margin: 0;
+            }
+
+            .button-new {
+                margin-bottom: 10px;
+                position: relative;
+                text-align: left;
+                width: 100%;
+
+                .groupEdit {
+                    cursor: pointer;
+                    position: absolute;
+                    right: 10px;
+                    top: 7px;
+
+                    .el-icon-edit {
+                        border-radius: 100%;
+                        padding: 3px;
+
+                        &:hover {
+                            background-color: #ccc;
+                            color: #fff
+                        }
+                    }
+
+                    .el-icon-delete {
+                        border-radius: 100%;
+                        padding: 3px;
+
+                        &:hover {
+                            background-color: #ccc;
+                            color: #fff
+                        }
+                    }
+                }
+            }
+
+            .input-new {
+                margin-bottom: 10px;
+                text-align: left;
+            }
+
+            .button-new-tag {
+                height: 32px;
+                line-height: 30px;
+                padding-top: 0;
+                padding-bottom: 0;
+                width: 100%
+            }
+
+            .input-new-tag {
+                width: 90px;
+                vertical-align: bottom;
+                width: 100%
+            }
+        }
+
+        .el-input {
+            // margin-bottom: 15px;
+
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+            }
+
+            input[type="number"] {
+                -moz-appearance: textfield;
+            }
+        }
+
+        .el-pagination {
+            margin-top: 15px;
+            // margin-bottom: 25px;
+            text-align: center;
+        }
+
+    }
+</style>

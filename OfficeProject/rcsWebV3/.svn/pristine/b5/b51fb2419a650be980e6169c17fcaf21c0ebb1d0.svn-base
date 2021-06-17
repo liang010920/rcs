@@ -1,0 +1,1817 @@
+<template>
+    <section class="operate-chatbot wrap-container">
+        <el-form :inline="true" :model="param" size="small">
+            <el-form-item label="chabotId">
+                <el-input v-model="param.chatbotId" placeholder="请输入chabotId"></el-input>
+            </el-form-item>
+            <el-form-item label="chabot名称">
+                <el-input v-model="param.name" placeholder="请输入chabot名称"></el-input>
+            </el-form-item>
+            <el-form-item label="服务代码">
+                <el-input v-model="param.serviceCode" placeholder="请输入服务代码"></el-input>
+            </el-form-item>
+            <el-form-item label="chatbot状态">
+                <el-select v-model="param.status" placeholder="请选择chatbot状态">
+                    <el-option v-for="item in chabotStatuList" :key="item.id" :label="item.name" :value="item.id">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+
+            <el-form-item>
+                <el-button type="primary" @click="load()" icon="el-icon-search">查询</el-button>
+                <el-button type="primary" @click="addChatbot()" icon="el-icon-search">新增</el-button>
+            </el-form-item>
+        </el-form>
+
+        <!-- 列表区 -->
+        <!-- <el-button @click="deleteTemp" size="mini" style="margin-bottom: 10px">删除</el-button> -->
+        <el-table :data="chabotList" fit v-loading="tableLoading" size="small" border
+            :header-cell-style="{'background-color': '#fafafa'}" @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="55" align="center">
+            </el-table-column>
+            <el-table-column prop="customerNum" label="非直签客户编码" align="center"></el-table-column>
+            <el-table-column prop="chatbotId" label="chatbotId" align="center"></el-table-column>
+            <el-table-column prop="name" label="chatbot名称" align="center"></el-table-column>
+            <el-table-column prop="cspId" label="CSP平台 ID" align="center"></el-table-column>
+            <el-table-column prop="serviceCode" label="服务代码" align="center"></el-table-column>
+            <el-table-column prop="status" label="状态" align="center">
+                <template slot-scope="scope">
+                    <div v-for="item in chabotStatuList" :key="item.id" v-if="item.id==scope.row.status">{{item.name}}</div>
+                </template>
+            </el-table-column>
+            <el-table-column prop="menuStatus" label="菜单状态" align="center">
+                <template slot-scope="scope">
+                    <div v-if="scope.row.menuStatus==0">待审核</div>
+                    <div v-if="scope.row.menuStatus==1">审核通过</div>
+                    <div v-if="scope.row.menuStatus==2">审核失败</div>
+                    <div v-if="scope.row.menuStatus==3">审核中</div>
+                </template>
+            </el-table-column>
+            <el-table-column prop="" label="操作" align="center">
+                <template slot-scope="scope">
+                    <el-button type="text" size="small" @click="editChatbot(scope.row)">编辑</el-button>
+                    <el-button type="text" size="small" @click="details(scope.row)">详情</el-button>
+                    <el-button type="text" size="small" @click="cancellation(scope.row)">注销</el-button>
+                    <el-button type="text" size="small" @click="groundingInfo(scope.row)" v-if="scope.row.status == 50">上架</el-button>
+                    <el-button type="text" size="small" @click="whiteInfo(scope.row)">白名单</el-button>
+                    <el-button type="text" size="small" @click="fixedMenu(scope.row)">固定菜单</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        <!-- 页码区 -->
+        <div class="block">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                :current-page="page.current" :page-sizes="[10, 20, 50, 200, 500]" :page-size="page.size"
+                layout="total, sizes, prev, pager, next, jumper" :total="page.total">
+            </el-pagination>
+        </div>
+
+        <!-- 编辑区 -->
+        <el-dialog :title="editTitle" class="detailsDialog" :visible.sync="editDialog" width="60%"
+            :close-on-click-modal="false">
+            <el-form label-width="200px" size="small" :model="chatbotForm" :rules="charbotRule" ref="chatbotForm">
+                <el-card class="box-card">
+                    <div slot="header" class="clearfix">
+                        <span>基本信息</span>
+                    </div>
+                    <div class="edit">
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="CSP平台 ID" prop="cspId">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-select v-model="chatbotForm.cspId" placeholder="请选择CSP平台 ID" :disabled="editTitle == '新增' ? false : true">
+                                                <el-option v-for="item in cspList" :key="item.cspId"
+                                                    :label="item.cspName" :value="item.cspId">
+                                                </el-option>
+                                            </el-select>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="归属代理商客户编码" prop="agentCustomerNum">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-select v-model="chatbotForm.agentCustomerNum" placeholder="请选择CSP平台 ID" :disabled="editTitle == '新增' ? false : true">
+                                                <el-option v-for="item in orderList" :key="item.customerNum"
+                                                    :label="item.customerNum" :value="item.customerNum">
+                                                </el-option>
+                                            </el-select>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            &nbsp;&nbsp;(注:请先选择csp平台 ID)
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="非直签客户编码" prop="customerNum">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-select v-model="chatbotForm.customerNum" placeholder="请选择客户编码" :disabled="editTitle == '新增' ? false : true">
+                                                <el-option v-for="item in csutList" :key="item.customerNum"
+                                                    :label="item.customerName" :value="item.customerNum">
+                                                </el-option>
+                                            </el-select>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            &nbsp;&nbsp;(注:请先选择归属代理商客户编码)
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="服务代码" prop="serviceCode">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.serviceCode" placeholder="请输入服务代码" maxlength="128"
+                                                disabled>
+                                            </el-input>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            &nbsp;&nbsp;(注:选择扩展码呈现服务代码)
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="短信端口号" prop="sms">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.sms" placeholder="请输入短信端口号" disabled maxlength="128">
+                                            </el-input>
+                                        </el-col>
+                                        <el-col :span="12">&nbsp;&nbsp;(注:短信端口号由服务代码、扩展码以及随机数组成的)</el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="chatbot ID" prop="chatbotId">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.chatbotId" placeholder="请输入chatbot ID"
+                                                maxlength="128" disabled>
+                                            </el-input>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            &nbsp;&nbsp;(注:chatbotID由服务代码、扩展码、随机数以及域名组成的)
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <div v-if="editTitle == '新增'">
+                            <el-row>
+                                <el-col :span="24">
+                                    <el-form-item label="扩展码" prop="extCode">
+                                        <el-row>
+                                            <el-col :span="12">
+                                                <el-select v-model="chatbotForm.extCode" placeholder="请选择扩展码">
+                                                    <el-option v-for="item in serviceList" :key="item.extCode" :label="item.extCode"
+                                                        :value="item.extCode">
+                                                    </el-option>
+                                                </el-select>
+                                            </el-col>
+                                            <el-col :span="12">
+                                                &nbsp;&nbsp;(注:请先选择非直签客户编码)
+                                            </el-col>
+                                        </el-row>
+                                    </el-form-item>
+                                </el-col>
+                            </el-row>
+                            <el-row>
+                                <el-col :span="24">
+                                    <el-form-item label="随机数" prop="randomNumber">
+                                        <el-row>
+                                            <el-col :span="12">
+                                                <el-input @input="setValueNull" v-model="chatbotForm.randomNumber" placeholder="请输入三位随机数" maxlength="3"
+                                                    onkeyup="this.value=this.value.replace(/\D/g,'')">
+                                                </el-input>
+                                            </el-col>
+                                        </el-row>
+                                    </el-form-item>
+                                </el-col>
+                            </el-row>
+                        </div>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="Chatbot名称" prop="name">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.name" placeholder="请输入Chatbot名称" maxlength="128">
+                                            </el-input>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="版本号" prop="eTag">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.eTag" placeholder="请输入版本号" maxlength="4">
+                                            </el-input>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <!-- <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="操作流水号" prop="messageId">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.messageId" placeholder="请输入操作流水号" maxlength="128">
+                                            </el-input>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row> -->
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="实际下发行业" prop="actualIssueIndustry">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-select v-model="chatbotForm.actualIssueIndustry" placeholder="请选择实际下发行业">
+                                                <el-option v-for="item in Issue" :key="item.id" :label="item.name"
+                                                    :value="item.id">
+                                                </el-option>
+                                            </el-select>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="归属区域编码" class="is-required">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-row>
+                                                <el-col :span="8">
+                                                    <el-input v-model="chatbotForm.officeName" placeholder="归属大区编号"
+                                                        maxlength="128" readonly>
+                                                    </el-input>
+                                                </el-col>
+                                                <el-col :span="8">
+                                                    <el-select v-model="chatbotForm.provinceCode"
+                                                        @change="selectAddress(chatbotForm.provinceCode)" placeholder="请选择省市">
+                                                        <el-option v-for="item in regionList" :key="item.nodeCode"
+                                                            :label="item.nodeName" :value="item.nodeCode">
+                                                        </el-option>
+                                                    </el-select>
+                                                </el-col>
+                                                <el-col :span="8">
+                                                    <el-select v-model="chatbotForm.cityCode" @change="selectCityNodeCode"
+                                                        placeholder="请选择地市">
+                                                        <el-option v-for="item in cityList" :key="item.nodeCode"
+                                                            :label="item.nodeName" :value="item.nodeCode">
+                                                        </el-option>
+                                                    </el-select>
+                                                </el-col>
+                                            </el-row>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="提供者开关" prop="providerSwitchCode">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-switch v-model="chatbotForm.providerSwitchCode" active-color="#13ce66" inactive-color="#ccc"
+                                                :active-value="1" :inactive-value="0">
+                                            </el-switch>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="提供者信息" prop="provider">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.provider" placeholder="请输入机器人提供者信息" maxlength="128">
+                                            </el-input>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="描述信息" prop="description">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.description" placeholder="请输入机器人描述信息"
+                                                maxlength="128">
+                                            </el-input>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="调试白名单" prop="chatBotWhiteList">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.chatBotWhiteList" placeholder="多个手机号用逗号隔开"
+                                                maxlength="128" type="textarea":rows="3">
+                                            </el-input>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="审核意见" prop="auditOpinion">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-input v-model="chatbotForm.auditOpinion" placeholder="请输入审核意见"
+                                                maxlength="128">
+                                            </el-input>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="机器人logo图标" prop="logo" class="is-required">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <upload-file-base v-if="editDialog" :limit="1" ref="logo" :fileSize="0.02"
+                                                accept="image/jpeg,image/png,image/jpg" folderType="file" :editFile="chatbotForm.logo"
+                                                tip="logo图片大小不超过20k，支持jpg/jepg、png、jpg格式"></upload-file-base>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+
+                        <!-- <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="Chatbot创建时间" prop="createTime">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-date-picker v-model="chatbotForm.createTime" type="date"
+                                                placeholder="请选择Chatbot创建时间">
+                                            </el-date-picker>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row> -->
+                        <!-- <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="操作时间" prop="opTime">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-date-picker v-model="chatbotForm.opTime" type="date" placeholder="请选择操作时间">
+                                            </el-date-picker>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row> -->
+                    </div>
+                </el-card>
+
+                <el-card class="box-card">
+                    <div slot="header" class="clearfix">
+                        <span>更多信息</span>
+                    </div>
+                    <div class="edit">
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="气泡颜色" prop="colour">
+                                    <el-color-picker v-model="chatbotForm.colour"></el-color-picker>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="行业类型" prop="category">
+                                    <el-row>
+                                        <el-col :span="12">
+                                            <el-select v-model="chatbotForm.categoryType" placeholder="请选择实际类型"
+                                                @change="selectCategory(chatbotForm.categoryType)">
+                                                <el-option v-for="item in IndustryType" :key="item.nodeCode"
+                                                    :label="item.nodeName" :value="item.nodeCode">
+                                                </el-option>
+                                            </el-select>
+                                        </el-col>
+                                        <el-col :span="12">
+                                            <el-select v-model="chatbotForm.category" multiple placeholder="请选择实际行业"
+                                                @change="selectCityNodeCode">
+                                                <el-option v-for="item in categoryList" :key="item.nodeCode"
+                                                    :label="item.nodeName" :value="item.nodeName">
+                                                </el-option>
+                                            </el-select>
+                                        </el-col>
+                                    </el-row>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="认证主体名" prop="authName"
+                                    :class="chatbotForm.isAuth=='1'?'is-required':''">
+                                    <el-input v-model="chatbotForm.authName" placeholder="请输入认证主体名" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="认证有效期" prop="authExpires"
+                                    :class="chatbotForm.isAuth=='1'?'is-required':''">
+                                    <el-date-picker v-model="chatbotForm.authExpires" type="datetime"
+                                        placeholder="请选择认证有效期">
+                                    </el-date-picker>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="认证机构" prop="authOrg"
+                                    :class="chatbotForm.isAuth=='1'?'is-required':''">
+                                    <el-input v-model="chatbotForm.authOrg" placeholder="请输入认证机构" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="回叫号码" prop="callback">
+                                    <el-input v-model="chatbotForm.callback" placeholder="请输入回叫号码" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="电子邮箱" prop="email">
+                                    <el-input v-model="chatbotForm.email" placeholder="请输入电子邮箱" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="主页地址" prop="website">
+                                    <el-input v-model="chatbotForm.website" placeholder="请输入主页地址" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="条款和条件内容的网页地址" prop="tcPage">
+                                    <el-input v-model="chatbotForm.tcPage" placeholder="请输入条款和条件内容的网页地址"
+                                        maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="办公地址" prop="address">
+                                    <el-input v-model="chatbotForm.address" placeholder="请输入办公地址" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="地理位置经度" prop="lon">
+                                    <el-input v-model="chatbotForm.lon" placeholder="请输入地理位置经度" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="地理位置纬度" prop="lat">
+                                    <el-input v-model="chatbotForm.lat" placeholder="请输入地理位置纬度" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="机器人版本号" prop="version">
+                                    <el-input v-model="chatbotForm.version" placeholder="请输入机器人版本号" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="卡片CSS样式地址" prop="genericCssTemplate">
+                                    <el-input v-model="chatbotForm.genericCssTemplate" placeholder="请输入卡片CSS样式地址"
+                                        maxlength="128"></el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="签名" prop="autograph">
+                                    <el-input v-model="chatbotForm.autograph" placeholder="请输入签名" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="并发最大速率" prop="concurrent">
+                                    <el-input v-model="chatbotForm.concurrent" placeholder="请输入并发最大速率" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="转换二进制位" prop="state">
+                                    <el-input v-model="chatbotForm.state" placeholder="请输入转换二进制位" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="日最大消息下发量" prop="amount">
+                                    <el-input v-model="chatbotForm.amount" placeholder="请输入日最大消息下发量" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="上传文件大小限制" prop="filesizeLimit">
+                                    <el-input v-model="chatbotForm.filesizeLimit" placeholder="请输入上传文件大小限制"
+                                        maxlength="44">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="CSP平台的鉴权Token" prop="cspToken">
+                                    <el-input v-model="chatbotForm.cspToken" placeholder="请输入CSP平台的鉴权Token"
+                                        maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="月最大消息下发量" prop="mAmount">
+                                    <el-input v-model="chatbotForm.mAmount" placeholder="请输入月最大消息下发量" maxlength="128">
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="群发模式" prop="sendMode">
+                                    <el-radio-group v-model="chatbotForm.sendMode">
+                                        <el-radio :label="1">普通消息</el-radio>
+                                        <el-radio :label="2">模板消息</el-radio>
+                                    </el-radio-group>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="操作类型" prop="opType">
+                                    <el-radio-group v-model="chatbotForm.opType">
+                                        <el-radio :label="0">新增</el-radio>
+                                        <el-radio :label="1">编辑</el-radio>
+                                    </el-radio-group>
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item label="认证状态" prop="isAuth">
+                                    <el-radio-group v-model="chatbotForm.isAuth">
+                                        <el-radio :label="0">未认证</el-radio>
+                                        <el-radio :label="1">认证</el-radio>
+                                    </el-radio-group>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <!-- <el-col :span="12">
+                                <el-form-item label="Chatbot状态" prop="category">
+                                    <el-radio-group v-model="chatbotForm.status">
+                                        <el-radio :label="0">正常</el-radio>
+                                        <el-radio :label="1">调试</el-radio>
+                                    </el-radio-group>
+                                </el-form-item>
+                            </el-col> -->
+                            <el-col :span="12">
+                                <el-form-item label="查询范围" prop="serviceRange">
+                                    <el-radio-group v-model="chatbotForm.serviceRange">
+                                        <el-radio :label="0">省内</el-radio>
+                                        <el-radio :label="1">全网</el-radio>
+                                        <el-radio :label="2">其它（预留）</el-radio>
+                                    </el-radio-group>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <!-- <el-row>
+                            <el-col :span="24">
+                                <el-form-item label="Chatbot固定菜单内容" prop="menu">
+                                    <el-input v-model="chatbotForm.menu" placeholder="请输入Chatbot固定菜单内容" maxlength="128" disabled>
+                                    </el-input>
+                                </el-form-item>
+                            </el-col>
+                        </el-row> -->
+                        <el-row>
+                            <el-col :span="12">
+                                <el-form-item label="背景图片" prop="backgroundImage">
+                                    <upload-file-base v-if="editDialog" :limit="1" ref="backgroundImage" :fileSize="10"
+                                        accept="*/*" folderType="file" :editFile="chatbotForm.backgroundImage"
+                                        tip="背景图片大小不超过10M，.pdf、.doc、.jpg、.gif、.rar格式">
+                                    </upload-file-base>
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                    </div>
+                </el-card>
+            </el-form>
+
+            <span slot="footer" class="dialog-footer">
+                <el-button size="small" @click="editDialog = false">取 消</el-button>
+                <el-button size="small" type="primary" @click="saveChatbot">确 定</el-button>
+            </span>
+        </el-dialog>
+
+        <!-- 详情区 -->
+        <el-dialog title="详情" class="detailsDialog" :visible.sync="detailsDialog" width="60%"
+            :close-on-click-modal="false">
+            <el-card class="box-card">
+                <div slot="header" class="clearfix">
+                    <span>基本信息</span>
+                </div>
+                <div class="detailsInfo">
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">状态</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">
+                                <span v-for="(item,index) in chabotStatuList" :key="index+'status'" v-if="detailsInfo.status==item.id">{{item.name}}</span>
+                            </div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">操作时间</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.opTime}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">Chatbot名称</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.name}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">归属EC</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.agentCustomerNum}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">归属区域</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.officeCode}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">服务代码</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.serviceCode}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">CSP ID</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.cspName}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">ChatbotID</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.chatbotId}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle detailsImgTitle">Chatbot头像</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent logoStyle">
+                                <el-image :src="detailsInfo.logoUrl">
+                                    <div slot="error" class="image-slot">
+                                        <i class="el-icon-picture-outline"></i>
+                                    </div>
+                                </el-image>
+                            </div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">短信端口</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.sms}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">签名</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.autograph}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">Chatbot提供者</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.provider}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">行业类型</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.categoryTypeInfo}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">实际下发行业</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent" v-for="(item,index) in Issue" :key="index+'status'"
+                                v-if="detailsInfo.actualIssueIndustry==item.id">{{item.name}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">描述</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.description}}</div>
+                        </el-col>
+                    </el-row>
+                </div>
+            </el-card>
+            <el-card class="box-card">
+                <div slot="header" class="clearfix">
+                    <span>更多信息</span>
+                </div>
+                <div class="detailsInfo">
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">服务条款</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.tcPage}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">Chatbot邮箱</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.email}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">Chatbot官网</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.website}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">服务电话</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.callback}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">主题颜色</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.colour}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">经度</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.lon}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">纬度</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.lat}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle detailsImgTitle">背景图片</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent backgroundImgStyle">
+                                <el-image :src="detailsInfo.backgroundImage">
+                                    <div slot="error" class="image-slot">
+                                        <i class="el-icon-picture-outline"></i>
+                                    </div>
+                                </el-image>
+                            </div>
+                        </el-col>
+                    </el-row>
+                </div>
+            </el-card>
+            <el-table :data="chatbotDetailsList" fit v-loading="chatbotDetailsLoading" size="small" border
+                :header-cell-style="{'background-color': '#fafafa'}">
+                <el-table-column prop="chatbotId" label="Chatbot ID" align="center"></el-table-column>
+                <el-table-column prop="authStatus" label="审核结果" align="center">
+                    <template slot-scope="scope">
+                        <div v-if="scope.row.authStatus == 1">通过</div>
+                        <div v-if="scope.row.authStatus == 2">不通过</div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="authType" label="审核类型" align="center">
+                    <template slot-scope="scope">
+                        <div v-if="scope.row.authType == 1">新增审核</div>
+                        <div v-if="scope.row.authType == 2">变更审核</div>
+                        <div v-if="scope.row.authType == 3">调试白名单审核</div>
+                        <div v-if="scope.row.authType == 4">上架</div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="comment" label="审核原因" align="center"></el-table-column>
+                <el-table-column prop="authPerson" label="审核人员" align="center"></el-table-column>
+                <el-table-column prop="authTime" label="审核时间" align="center"></el-table-column>
+            </el-table>
+            <!-- 页码区 -->
+            <div class="block">
+                <el-pagination @size-change="chatbotDetailsPageSizeChange"
+                    @current-change="chatbotDetailsPageCurrentChange" :current-page="chatbotDetailsPage.current"
+                    :page-sizes="[10, 20, 50, 200, 500]" :page-size="chatbotDetailsPage.size"
+                    layout="total, sizes, prev, pager, next, jumper" :total="chatbotDetailsPage.total">
+                </el-pagination>
+            </div>
+            <span slot="footer" class="dialog-footer">
+                <el-button size="small" @click="detailsDialog = false">取 消</el-button>
+            </span>
+        </el-dialog>
+
+        <!-- Chatbot上架申请 -->
+        <el-dialog title="Chatbot上架申请" :visible.sync="groundingDialog" width="60%" :close-on-click-modal="false">
+            <el-form label-width="150px" size="small" :model="groundingForm" ref="groundingForm">
+                <el-form-item label="Chatbot ID" class="is-required">
+                    <el-input v-model="groundingForm.chatbotid" placeholder="请输入Chatbot ID " maxlength="128" disabled>
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="上架申请说明">
+                    <el-input v-model="groundingForm.putAwayExplain" placeholder="请输入上架申请说明" maxlength="100"></el-input>
+                </el-form-item>
+                <el-form-item label="测试报告附件" class="is-required">
+                    <upload-file-base v-if="groundingDialog" :limit="1" :fileSize="10" ref="testReportUrl"
+                        accept="enclosure/pdf,enclosure/doc,enclosure/jpg,enclosure/jpeg,enclosure/gif,enclosure/rar,"
+                        folderType="file" :editFile="groundingForm.testReportUrl"
+                        tip="测试报告附件大小不超过10M，.pdf、.doc、.jpg、.gif、.rar格式"></upload-file-base>
+                </el-form-item>
+            </el-form>
+            <div align="center" class="dialog-footer">
+                <el-button size="small" @click="groundingDialog = false">取 消</el-button>
+                <el-button size="small" type="primary" @click="groundingSave()">确 定</el-button>
+            </div>
+        </el-dialog>
+
+        <!-- 提交白名单 -->
+        <el-dialog title="提交白名单" :visible.sync="whiteDialog" width="60%" :close-on-click-modal="false">
+            <el-form label-width="150px" size="small" :model="whiteForm" ref="whiteForm">
+                <el-form-item label="Chatbot ID" class="is-required">
+                    <el-input v-model="whiteForm.chatbotId" placeholder="请输入Chatbot ID " maxlength="128" disabled>
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="调试白名单列表" class="is-required">
+                    <el-input v-model="whiteForm.chatBotWhiteList" type="textarea" placeholder="请输入调试白名单列表,手机号码用逗号分割"
+                        :rows="5" maxlength="2048"></el-input>
+                </el-form-item>
+            </el-form>
+            <div align="center" class="dialog-footer">
+                <el-button size="small" @click="whiteDialog = false">取 消</el-button>
+                <el-button size="small" type="primary" @click="whiteSave()">确 定</el-button>
+            </div>
+        </el-dialog>
+
+        <!-- 固定菜单 start -->
+        <el-dialog class="query-detail-dialog" title="固定菜单" :visible.sync="fixedMenuBool" width="70%" center
+            :close-on-click-modal="false">
+            <chatbot-menu v-if="fixedMenuBool" :chatbotMenuId="chatbotMenuId" chatbotOperationType="2" @refreshList="refreshList" @cancel="cancel"></chatbot-menu>
+        </el-dialog>
+        <!-- 固定菜单 end -->
+    </section>
+</template>
+
+<script>
+    import {
+        operateGetChatbotList,
+        addChatbot,
+        cancelChatbot,
+        getAreaCityList,
+        getIndustryList,
+        getChatbotStatusList,
+        getChatbotIndustryList,
+        getOrderList,
+        putChatbot,
+        resubmitChatbotWhite,
+        getChatbotCheckInfoList,
+        getServiceCodeList,
+        getNonSignCustList,
+        getCspList,
+        getChatbot
+    } from '../../api/api.js'
+    import UploadFileBase from '../../components/UploadFileBase'
+    import chatbotMenu from '../components/chatbotMenu/index'
+
+    // import {
+    //     Sketch
+    // } from 'vue-color'
+
+    export default {
+        components: {
+            UploadFileBase,
+            // 'sketch-picker': Sketch,
+            chatbotMenu
+        },
+        data() {
+            return {
+
+                charbotRule: {
+                    customerNum: [{
+                        required: true,
+                        message: '请选择客户编码',
+                        trigger: 'change'
+                    }],
+                    agentCustomerNum: [{
+                        required: true,
+                        message: '请选择归属代理商的客户编码',
+                        trigger: 'change'
+                    }],
+                    extCode: [{
+                        required: true,
+                        message: '请选择扩展码',
+                        trigger: 'change'
+                    }],
+                    randomNumber: [{
+                        required: true,
+                        message: '请输入三位随机数',
+                        trigger: 'blur'
+                    }],
+                    cspId: [{
+                        required: true,
+                        message: '请选择CSP ID',
+                        trigger: 'change'
+                    }],
+                    chatbotId: [{
+                        required: true,
+                        message: '请输入Chatbot ID',
+                        trigger: 'blur'
+                    }],
+                    serviceCode: [{
+                        required: true,
+                        message: '请输入服务代码',
+                        trigger: 'blur'
+                    }],
+                    name: [{
+                        required: true,
+                        message: '请输入Chatbot名称',
+                        trigger: 'blur'
+                    }],
+                    // status: [{
+                    //     required: true,
+                    //     message: '请输入Chatbot状态',
+                    //     trigger: 'change'
+                    // }],
+                    officeCode: [{
+                        required: true,
+                        message: '请输入归属大区',
+                        trigger: 'blur'
+                    }],
+                    provinceCode: [{
+                        required: true,
+                        message: '请输入归属省份编号',
+                        trigger: 'blur'
+                    }],
+                    cityCode: [{
+                        required: true,
+                        message: '请输入归属地市编号',
+                        trigger: 'blur'
+                    }],
+                    actualIssueIndustry: [{
+                        required: true,
+                        message: '请选择实际下发行业',
+                        trigger: 'change'
+                    }],
+                    createTime: [{
+                        required: true,
+                        message: '请选择Chatbot创建时间',
+                        trigger: 'change'
+                    }],
+                    opTime: [{
+                        required: true,
+                        message: '请选择Chatbot请选择操作时间',
+                        trigger: 'change'
+                    }],
+                    eTag: [{
+                        required: true,
+                        message: '请输入版本号',
+                        trigger: 'blur'
+                    }],
+                    messageId: [{
+                        required: true,
+                        message: '请输入操作流水号',
+                        trigger: 'blur'
+                    }],
+                    providerSwitchCode: [{
+                        required: true,
+                        message: '请选择提供者开关',
+                        trigger: 'change'
+                    }],
+                    description: [{
+                        required: true,
+                        message: '请输入描述信息',
+                        trigger: 'blur'
+                    }],
+                    auditOpinion: [{
+                        required: true,
+                        message: '请输入审核意见',
+                        trigger: 'blur'
+                    }],
+                    chatBotWhiteList: [{
+                        required: true,
+                        message: '请输入白名单号码',
+                        trigger: 'blur'
+                    }],
+
+                },
+                page: { //页码区
+                    current: 1,
+                    size: 10,
+                    total: 0,
+                },
+                tableLoading: false,
+                chabotList: [],
+                editTitle: '',
+                editDialog: false,
+                chatbotForm: {
+                    opType: 0,
+                    isAuth: 0,
+                    version: 2,
+                    serviceRange: 0,
+                    sendMode: 1,
+                    chatbotId:'',
+                    providerSwitchCode:0,
+                },
+                param: {},
+                delListId: [],
+                chabotStatuList: [],
+                Issue: [], //实际下发
+                IndustryType: [], //行业类型
+                categoryList: [],
+                regionList: [], //省市
+                cityList: [], //地市
+                detailsDialog: false,
+                detailsInfo: {},
+                orderList: [],
+
+                //上架
+                groundingDialog: false,
+                groundingForm: {},
+
+                //白名单
+                whiteDialog: false,
+                whiteForm: {},
+
+                //获取Chatbot审核信息
+                chatbotDetailsLoading: false,
+                chatbotDetailsList: [],
+                chatbotDetailsPage: { //页码区
+                    current: 1,
+                    size: 10,
+                    total: 0,
+                },
+                chatbotDetailsId: '',
+                csutList: [], //非直签
+                serviceList: [], //chatbot服务
+                antiShake: null, //防抖
+                cspList: [], //csp分组
+                domainName:'@botplatform.rcs.chinamobile.com',//域名
+
+                //固定菜单
+                chatbotMenuId:0,
+                fixedMenuBool:false,
+
+            }
+        },
+        watch: {
+            'chatbotForm.cspId'(val){
+                this.cspList.map(item => {
+                    if (item.cspId == val) {
+                        this.getOrderList(val)
+                    }
+                })
+            },
+            'chatbotForm.agentCustomerNum'(val) {
+                this.orderList.map(item => {
+                    if (item.customerNum == val) {
+                        this.getNonSignCustList(val)
+                    }
+                })
+            },
+            'chatbotForm.customerNum'(val) {
+                this.csutList.map(item => {
+                    if (item.customerNum == val) {
+                        this.chatbotForm.agentCustomerNum = item.belongAgentCode
+                        this.getServiceCodeList(val)
+                    }
+                })
+            },
+            'chatbotForm.extCode'(val) {
+                this.serviceList.map(item => {
+                    if (item.extCode == val) {
+                        this.chatbotForm.serviceCode = item.serviceCode
+                        this.chatbotForm.chatbotId = this.chatbotForm.serviceCode + val + this.domainName
+                        this.chatbotForm.sms = this.chatbotForm.serviceCode + val
+                    }
+                })
+            },
+            // 'chatbotForm.randomNumber'(val) {
+            //     this.chatbotForm.chatbotId = this.chatbotForm.serviceCode + this.chatbotForm.extCode + val
+            // }
+        },
+        methods: {
+            /* 固定菜单*/
+            fixedMenu(row) {
+                // console.log('row---:', row)
+                this.chatbotMenuId = row.id
+                this.fixedMenuBool = true;
+            },
+            //关闭固定菜单窗口
+            cancel(fixedMenuBool){
+                this.fixedMenuBool = fixedMenuBool
+            },
+            //刷新列表
+            refreshList(){
+                this.load()
+            },
+
+            debounce(func, wait = 500, immediate = false) {
+                let timeout;
+                // 清除定时器
+                if (timeout !== null) clearTimeout(timeout);
+                // 立即执行，此类情况一般用不到
+                if (immediate) {
+                    var callNow = !timeout;
+                    timeout = setTimeout(function() {
+                        timeout = null;
+                    }, wait);
+                    if (callNow) typeof func === 'function' && func();
+                } else {
+                    // 设置定时器，当最后一次操作后，timeout不会再被清除，所以在延时wait毫秒后执行func回调方法
+                    timeout = setTimeout(function() {
+                        typeof func === 'function' && func();
+                    }, wait);
+                }
+            },
+            //监听用户输入值变化，延迟调用请求函数（getTableListData）
+            setValueNull() {
+                this.debounce(this.getTableListData)
+            },
+            getTableListData() {
+                this.chatbotForm.chatbotId = this.chatbotForm.serviceCode + this.chatbotForm.extCode + this.chatbotForm.randomNumber + this.domainName
+                this.chatbotForm.sms = this.chatbotForm.serviceCode + this.chatbotForm.extCode + this.chatbotForm.randomNumber
+            },
+            //csp分组
+            getCspList() {
+                getCspList({}).then(res => {
+                    this.cspList = res.data
+                })
+            },
+            //非直签客户
+            getNonSignCustList(customerNum) {
+                getNonSignCustList({customerNum:customerNum}).then(res => {
+                    if (res.success) {
+                        this.csutList = res.data
+                    }
+                })
+            },
+
+            //chatbot服务代码
+            getServiceCodeList(customerNum) {
+                let param = {
+                    customerNum: customerNum
+                }
+                getServiceCodeList(param).then(res => {
+                    if (res.success) {
+                        this.serviceList = res.data;
+
+                    }
+                })
+            },
+
+            updateValue(val) {
+                this.chatbotForm.colour = val.hex
+            },
+            /* 白名单*/
+            /* 白名单*/
+            //白名单信息
+            whiteInfo(row) {
+                this.whiteDialog = true
+                this.whiteForm.chatbotId = row.chatbotId
+            },
+            //提交白名单
+            whiteSave() {
+                if (this.whiteForm.chatBotWhiteList) {
+                    var myreg = /^[1][3,4,5,6,7,8,9][0-9]{9}$/;
+                    let whiteList,
+                        chatBotWhite = this.whiteForm.chatBotWhiteList;
+                    chatBotWhite = chatBotWhite.replace(/，/g, ',')
+
+                    if (chatBotWhite.indexOf(',') != -1) {
+                        whiteList = chatBotWhite.split(',')
+                        if (whiteList[whiteList.length - 1] == '') {
+                            whiteList = whiteList.length - 1
+                            chatBotWhite = chatBotWhite.substr(0, chatBotWhite.length - 1)
+                            this.whiteForm.chatBotWhiteList = chatBotWhite
+                        }
+                        for (var i = 0; i < whiteList.length; i++) {
+                            if (!myreg.test(whiteList[i])) {
+                                this.$message.warning("其中有号码格式不正确，请进行更改！")
+                                return
+                            }
+
+                        }
+                    } else {
+                        if (!myreg.test(chatBotWhite)) {
+                            this.$message.warning("请输入正确的号码！")
+                            return
+                        }
+                    }
+                } else {
+                    this.$message.warning("不能为空白名单列表！")
+                    return
+                }
+
+                resubmitChatbotWhite(this.whiteForm).then(res => {
+                    if (res.success) {
+                        this.$message.success("白名单提交成功")
+                        this.whiteDialog = false
+                        this.whiteForm = {}
+                    }
+                })
+            },
+
+            /* 上架*/
+            //上架chatbot保存
+            groundingSave() {
+                if (this.$refs.testReportUrl.fileList.length <= 0) {
+                    this.$message({
+                        message: '请上传测试报告附件',
+                        type: 'warning'
+                    })
+                    return
+                }
+                let testReportUrlFile = []
+                testReportUrlFile.push({url:this.$refs.testReportUrl.fileList[0].url,name:this.$refs.testReportUrl.fileList[0].name})
+                this.groundingForm.testReportUrl = JSON.stringify(testReportUrlFile)
+                putChatbot(this.groundingForm).then(res => {
+                    if (res.success) {
+                        this.$message.success("上架申请成功");
+                        this.groundingDialog = false
+                        this.groundingForm = {}
+                    }
+                })
+            },
+            //上架基本信息
+            groundingInfo(row) {
+                this.groundingDialog = true
+                this.groundingForm.chatbotid = row.chatbotId
+            },
+
+            //详情
+            details(row) {
+                getChatbot({id:row.id}).then(res=>{
+                    this.detailsDialog = true
+                    this.detailsInfo = res.data
+                    let bigAreaName, provinceName, cityName
+                    console.log('详情数据：',res.data)
+                    let logoFile = JSON.parse(res.data.logo)
+                    this.detailsInfo.logoUrl = logoFile[0].url
+                    if(res.data.backgroundImage){
+                        let backgroundImageFile = JSON.parse(res.data.backgroundImage)
+                        this.detailsInfo.backgroundImage = backgroundImageFile[0].url
+                    }
+
+                    this.regionList.map(item => {
+                        if (item.nodeCode == this.detailsInfo.provinceCode) {
+                            bigAreaName = item.bigAreaName
+                            provinceName = item.nodeName
+                        }
+                    })
+
+                    getAreaCityList({
+                        parentCode: this.detailsInfo.provinceCode
+                    }).then(resData => {
+                        resData.data.map(item => {
+                            if (item.nodeCode == this.detailsInfo.cityCode) {
+                                cityName = item.nodeName
+                                this.detailsInfo.officeCode = bigAreaName + '-' +
+                                    provinceName + '-' + cityName
+                            }
+                        })
+                    })
+                    if(res.data.category){
+                        let categoryList = JSON.parse(res.data.category)
+                        this.detailsInfo.categoryTypeInfo=''
+                        categoryList.map(data=>{
+                            this.detailsInfo.categoryTypeInfo += data +','
+                        })
+                    }
+                    this.getChatbotCheckInfoList(res.data.chatbotId)
+
+                    getCspList({}).then(resData => {
+                        resData.data.map(item=>{
+                            console.log(item.cspId == res.data.cspId,'-----item')
+                            if(item.cspId == res.data.cspId){
+                                this.detailsInfo.cspName = item.cspName
+                            }
+                        })
+                    })
+                })
+            },
+            getChatbotCheckInfoList(chatbotId) {
+                this.chatbotDetailsId = chatbotId
+                this.chatbotDetailsLoading = true
+                let param = {
+                    chatbotId: chatbotId
+                }
+                Object.assign(param, this.chatbotDetailsPage)
+                getChatbotCheckInfoList(param).then(res => {
+                    if (res.success) {
+                        this.chatbotDetailsLoading = false
+                        this.chatbotDetailsList = res.data.records;
+                        this.chatbotDetailsPage.total = res.data.total
+                    } else {
+                        this.$message.error(res.message);
+                    }
+                })
+            },
+            selectAddress(val) {
+                this.chatbotForm.cityCode = ''
+                this.selectOffice(val)
+            },
+            selectCityNodeCode() {
+                this.$forceUpdate()
+            },
+            //注销
+            cancellation(row) {
+                this.$confirm('是否注销此条chatbot', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    cancelChatbot({
+                        chatbotId: row.chatbotId
+                    }).then(res => {
+                        if (res.success) {
+                            this.$message.success("注销成功");
+                            this.load();
+                        }
+                    })
+                })
+            },
+            //保存
+            saveChatbot() {
+                let t_this = this
+                this.$refs.chatbotForm.validate((valid) => {
+                    if (valid) {
+                        if (this.chatbotForm.isAuth == 1) {
+                            if (!this.chatbotForm.authName || !this.chatbotForm.authExpires || !this
+                                .chatbotForm
+                                .authOrg) {
+                                this.$message.warning('认证状态为认证时，认证主体名、认证有效期、认证机构不能为空!')
+                            }
+                            return
+                        }
+                        if (this.chatbotForm.categoryType != undefined) {
+                            if (this.chatbotForm.category.length == 0) {
+                                this.$message.warning('选择了行业类型，实际行业不能为空！')
+                                return
+                            }
+                        }
+                        if (t_this.$refs.logo.fileList.length <= 0) {
+                            this.$message({
+                                message: '请上传logo图标',
+                                type: 'warning'
+                            })
+                            return
+                        }
+
+                        let phone = this.chatbotForm.chatBotWhiteList;
+                        if(phone){
+                            var myreg= /^[1][3,4,5,6,7,8,9][0-9]{9}$/;
+                            let phoneVerification
+                            phone = phone.replace(/，/g,",")
+                            if(phone.indexOf(',') != -1){
+                                phoneVerification = phone.split(',');
+                                if(phoneVerification[phoneVerification.length-1]==''){
+                                    phoneVerification = phoneVerification.length-1
+                                    phone = phone.substr(0,phone.length-1)
+                                    this.chatbotForm.chatBotWhiteList = phone
+                                }
+                                for(var i = 0; i<phoneVerification.length;i++){
+                                    if (!myreg.test(phoneVerification[i])) {
+                                        this.$message.warning("请输入正确的号码！")
+                                        return
+                                    }
+                                }
+                            }else{
+                                if (!myreg.test(phone)) {
+                                    this.$message.warning("请输入正确的号码！",phone)
+                                    return
+                                }
+                            }
+                        }
+                        let logoArr = [],
+                        backgroundImageArr=[]
+                        logoArr.push({url:t_this.$refs.logo.fileList[0].url,name:t_this.$refs.logo.fileList[0].name})
+
+                        let param = {
+                            logo: JSON.stringify(logoArr),
+                            category:JSON.stringify(this.chatbotForm.category)
+                        }
+                        if(t_this.$refs.backgroundImage.fileList.length > 0){
+                            backgroundImageArr.push({url:t_this.$refs.backgroundImage.fileList[0].url,name:t_this.$refs.backgroundImage.fileList[0].name})
+                            param.backgroundImage=JSON.stringify(backgroundImageArr)
+                        }
+                        Object.assign(this.chatbotForm, param)
+                        addChatbot(this.chatbotForm).then(res => {
+                            if (res.success) {
+                                if (this.chatbotForm.id != undefined) {
+                                    this.$message({
+                                        message: ' 编辑成功',
+                                        type: 'success'
+                                    })
+                                } else {
+                                    this.$message({
+                                        message: '添加成功',
+                                        type: 'success'
+                                    })
+                                }
+                                this.chatbotForm = {
+                                    opType: 0,
+                                    isAuth: 0,
+                                    version: 2,
+                                    serviceRange: 0,
+                                    sendMode: 1,
+                                }
+                                this.editDialog = false
+                                this.load()
+                            }
+                        })
+                    }
+                })
+            },
+            //新增
+            addChatbot() {
+                this.editTitle = '新增'
+                this.editDialog = true
+                this.chatbotForm = {
+                    opType: 0,
+                    isAuth: 0,
+                    version: 2,
+                    serviceRange: 0,
+                    sendMode: 1,
+                    chatbotId:''
+                }
+                this.getCspList()
+            },
+            //编辑
+            editChatbot(row) {
+                getChatbot({id:row.id}).then(res=>{
+                    this.chatbotForm = {}
+                    console.log(res.data)
+                    this.editTitle = '编辑'
+                    this.editDialog = true
+                    this.chatbotForm = res.data
+                    this.chatbotForm.category = JSON.parse(res.data.category)
+                    // let category = this.chatbotForm.category.split(',')
+                    // this.getIndustryList(category[0])
+                    // this.$nextTick(() => {
+                    //     this.chatbotForm.categoryType = category[0]
+                    //     this.chatbotForm.categoryType2 = category[1]
+                    // })
+                    this.selectOffice(this.chatbotForm.provinceCode)
+
+                    this.getCspList()
+                    this.getOrderList(res.data.cspId)
+                    this.getNonSignCustList(res.data.agentCustomerNum)
+                })
+            },
+            //获取地区
+            getAreaCityList(node) {
+                getAreaCityList({
+                    parentCode: node == undefined ? '-1' : node
+                }).then(res => {
+                    if (node == undefined) {
+                        this.regionList = res.data
+                    } else {
+                        this.cityList = res.data
+                    }
+                })
+            },
+            selectCategory(val) {
+                // this.chatbotForm.categoryType2 = ''
+                this.getIndustryList(val)
+            },
+            selectOffice(val) {
+                this.regionList.map(item => {
+                    if (item.nodeCode == val) {
+                        this.chatbotForm.officeName = item.bigAreaName
+                        this.chatbotForm.officeCode = item.bigAreaCode
+                        this.getAreaCityList(item.nodeCode)
+                    }
+                })
+            },
+            //获取行业
+            getChatbotIndustryList() {
+                getChatbotIndustryList().then(res => {
+                    this.Issue = res.data
+                })
+            },
+            //获取chatbot状态
+            getChatbotStatusList() {
+                getChatbotStatusList().then(res => {
+                    this.chabotStatuList = res.data
+                })
+            },
+            //行业类型
+            getIndustryList(node) {
+                getIndustryList({
+                    parentCode: node == undefined ? '-1' : node
+                }).then(res => {
+                    if (node == undefined) {
+                        this.IndustryType = res.data
+                    } else {
+                        this.categoryList = res.data
+                    }
+                })
+            },
+            //获取订购信息列表
+            getOrderList(cspId) {
+                getOrderList({cspId:cspId}).then(res => {
+                    this.orderList = res.data
+                })
+            },
+            //选择列表数据
+            handleSelectionChange(val) {
+                this.delListId = val;
+            },
+            //删除
+            deleteTemp() {
+                if (this.delListId.length > 0) {
+                    let tips = "是否确认删除？";
+                    this.$confirm(tips, '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        let delIds = this.delListId.map(val => val.id)
+                        delPageLogs({
+                            ids: delIds.join()
+                        }).then(function(res) {
+                            if (res.success) {
+                                this.$message.success("删除成功");
+                                this.load();
+                            } else {
+                                this.$message.error(res.message);
+                            }
+                        })
+                    })
+                } else {
+                    this.$message.warning('没有选择数据')
+                }
+            },
+
+            chatbotDetailsPageCurrentChange(currentPage) { //获取Chatbot审核信息----改变当前页
+                this.chatbotDetailsPage.curPage = currentPage
+                this.getChatbotCheckInfoList(chatbotDetailsId)
+            },
+            chatbotDetailsPageSizeChange(size) { //获取Chatbot审核信息----改变页面size
+                this.chatbotDetailsPage.size = size;
+                this.getChatbotCheckInfoList(chatbotDetailsId)
+            },
+
+            handleCurrentChange(currentPage) { //改变当前页
+                this.page.current = currentPage
+                this.load()
+            },
+            handleSizeChange(size) { //改变页面size
+                this.page.size = size;
+                this.load()
+            },
+            load() { //加载列表
+                this.tableLoading = true
+                Object.assign(this.param, this.page)
+                operateGetChatbotList(this.param).then(res => {
+                    this.tableLoading = false
+                    if (res.success) {
+                        this.chabotList = res.data.records;
+                        this.page.total = res.data.total
+                    } else {
+                        this.$message.error(res.message);
+                    }
+                })
+            },
+        },
+        mounted() {
+
+        },
+        activated() {
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 50 - 41 - 51 - 60 - 47 + 'px'
+            this.load();
+            this.getAreaCityList()
+            this.getChatbotStatusList()
+            this.getChatbotIndustryList()
+            this.getIndustryList()
+        }
+    }
+</script>
+<style lang="less">
+    .operate-chatbot {
+        .color_con {
+            width: 100px;
+            height: 33px;
+        }
+
+        .vc-sketch {
+            position: absolute !important;
+            z-index: 999;
+        }
+
+        .el-table__body-wrapper {
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        .detailsInfo {
+            border: 1px solid #DFE5F2;
+
+            .el-row {
+                border-bottom: 1px solid #DFE5F2;
+
+                .el-col:first-child {
+                    .detailsTitle {
+                        border-left: 0;
+                    }
+                }
+            }
+
+            .el-row:last-child {
+                border-bottom: 0;
+            }
+
+            .detailsTitle {
+                background-color: #F9FBFF;
+                padding: 15px;
+                font-weight: bold;
+                border-right: 1px solid #DFE5F2;
+                border-left: 1px solid #DFE5F2;
+            }
+
+            .detailsImgTitle{
+                height: 85px;
+                line-height: 55px;
+            }
+
+            .detailsContent {
+                padding: 15px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                width: 100%;
+            }
+            .backgroundImgStyle{
+                .el-image{
+                    height: 50px;
+                    width: 50px;
+                }
+            }
+            .logoStyle{
+                .el-image{
+                    border-radius: 50%;
+                    height: 50px;
+                    width: 50px;
+                }
+            }
+        }
+
+        .detailsDialog {
+            .el-dialog {
+                margin-top: 13vh !important;
+            }
+
+            .edit {
+                .el-input {
+                    width: 100% !important;
+                }
+
+                .el-select {
+                    width: 100% !important;
+                }
+            }
+
+            .el-dialog__footer {
+                text-align: center;
+            }
+
+            .el-dialog__body {
+                height: 610px;
+                overflow: auto;
+
+                &::-webkit-scrollbar {
+                    width: 4px;
+                    height: 4px;
+                }
+
+                &::-webkit-scrollbar-thumb {
+                    border-radius: 10px;
+                    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                    background: rgba(0, 0, 0, 0.2);
+                }
+
+                &::-webkit-scrollbar-track {
+                    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                    border-radius: 0;
+                    background: rgba(0, 0, 0, 0.1);
+                }
+            }
+        }
+
+        .el-pagination {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .el-date-editor .el-range-separator {
+            width: 10%;
+        }
+
+        .box-card {
+            width: 100%;
+            margin-bottom: 20px;
+
+            .el-card__header {
+                font-weight: bold;
+                background-color: #F9FBFF;
+            }
+        }
+    }
+</style>

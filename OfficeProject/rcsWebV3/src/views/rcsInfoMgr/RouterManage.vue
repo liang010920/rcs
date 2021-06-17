@@ -1,0 +1,366 @@
+<template>
+    <section class="router-manage wrap-container">
+        <el-form :inline="true" :model="param" size="small">
+
+            <!-- <el-form-item label="是否关联回复">
+                <el-select placeholder="请选择关联回复">
+                    <el-option label="全部" :value="0"></el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="是否关联按钮">
+                <el-select placeholder="请选择关联按钮">
+                    <el-option label="全部" :value="0"></el-option>
+                </el-select>
+            </el-form-item> -->
+            <el-form-item label="规则名称">
+                <el-input v-model="param.name" placeholder="输入规则名称搜索"></el-input>
+            </el-form-item>
+            <el-form-item label="选择chatbot">
+                <el-select v-model="param.chatbotId" placeholder="请选择">
+                    <el-option label="全部" :value='-1'></el-option>
+                    <el-option v-for="(item,index) in chatbotList" :key="'chatbotId'+index" :label="item.chatbotName"
+                        :value="item.id"></el-option>
+                </el-select>
+            </el-form-item>
+
+            <el-form-item>
+                <el-button type="primary" @click="search" icon="el-icon-search">查询</el-button>
+            </el-form-item>
+
+            <el-form-item>
+                <el-button type="primary" @click="addRouter">新增路由</el-button>
+            </el-form-item>
+
+        </el-form>
+
+
+        <section>
+            <el-table :data="routeList" fit v-loading="tableLoading" size="small" border
+                :header-cell-style="{'background-color': '#F7F9FA'}">
+                <el-table-column prop="keyword" label="关键词" align="center">
+                    <template slot-scope="scope">
+                        {{scope.row.matchingWord | keyword}}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="" label="回复内容" align="center">
+                    <template slot-scope="scope">
+                        <div v-if="scope.row.type==1">文本内容</div>
+                        <div v-if="scope.row.type==2">图片内容</div>
+                        <div v-if="scope.row.type==3">音频内容</div>
+                        <div v-if="scope.row.type==4">视频内容</div>
+                        <div v-if="scope.row.type==10">模板内容</div>
+                        <div v-if="scope.row.type==11">应用内容</div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="" label="关联回复" align="center">
+                    <template slot-scope="scope">
+                        <div v-if="scope.row.type!=11" class="preview" @click="preview(scope.row)">预览</div>
+                        <div v-else>应用</div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="createTime" label="更新时间" align="center"></el-table-column>
+                <el-table-column prop="name" label="规则名称" align="center"></el-table-column>
+                <el-table-column prop="ruleType" label="规则类型" align="center">
+                    <template slot-scope="scope">
+                        <!-- <div v-if=""></div> -->
+                        {{scope.row.ruleType==1?'默认回复':'普通回复'}}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="chatbotId" label="chatbot" align="center">
+                    <template slot-scope="scope">
+                        <div v-for="(item,index) in chatbotList" :key="'chatbot'+index">
+                            <div v-if="scope.row.chatbotId == item.id">{{item.chatbotName}}</div>
+                        </div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="controlStatus" label="状态" align="center">
+                    <template slot-scope="scope">
+                        {{scope.row.controlStatus==1?'已启用':'已停用'}}
+                    </template>
+                </el-table-column>
+                <!-- 操作区 -->
+                <el-table-column label="操作" align="center">
+                    <template slot-scope="scope">
+                        <el-button type="text" size="small" @click="toDetail(scope.row)">编辑</el-button>
+                        <el-button type="text" size="small" @click="delRouteCfg(scope.row.id)">删除</el-button>
+                        <el-button type="text" size="small" @click="control(scope.row,0)"
+                            v-if="scope.row.controlStatus==1">停用</el-button>
+                        <el-button type="text" size="small" @click="control(scope.row,1)" v-else>启用</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </section>
+
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                :current-page="param.current" :page-sizes="[10, 15, 20, 30]" :page-size="param.size"
+                layout="total, sizes, prev, pager, next, jumper" :total="param.total">
+            </el-pagination>
+        </div>
+        <!-- dialog start -->
+        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="1000px" center
+            :close-on-click-modal="false">
+            <span slot="footer" class="dialog-footer">
+            </span>
+        </el-dialog>
+        <!-- dialog end -->
+
+        <!-- 预览 start -->
+        <el-dialog title="预览" class="dialogCenter" :visible.sync="previewDialogVisible" width="35%" center
+            :close-on-click-modal="false">
+            <pre-view :row='row' v-if="previewDialogVisible"></pre-view>
+        </el-dialog>
+        <!-- 预览 end -->
+    </section>
+</template>
+
+<script>
+    import UploadFileBase from '../../components/UploadFileBase'
+    import {
+        imageRootPath
+    } from '../../config/config.js'
+    import {
+        regionDataPlus,
+        provinceAndCityData,
+        CodeToText,
+        TextToCode
+    } from 'element-china-area-data'
+    import {
+        getRouteCfgList,
+        saveRouteCfg,
+        delRouteCfg,
+        getPasswayList
+    } from '../../api/api'
+    import Aplayer from 'vue-aplayer'
+    import PreView from '../components/Preview/index.vue'
+
+    export default {
+        name: "GatewaySet",
+        components: {
+            UploadFileBase,
+            Aplayer,
+            PreView
+        },
+        data() {
+            return {
+                swiperOptions: {
+                    pagination: {
+                        el: '.swiper-pagination'
+                    },
+                },
+                routeList: [],
+                tableLoading: false,
+                param: {
+                    current: 1,
+                    size: 10,
+                    total: 0,
+                    name: '',
+                    chatbotId: -1
+                }, // 传入后台参数
+                dialogVisible: false,
+                music: {
+                    title: '羊毛党音频',
+                    artist: ' ',
+                    src: 'http://qyb-bucket.oss-cn-qingdao.aliyuncs.com/test/audio/f78a1f1867e6196731233d6791d0a63f.mp3',
+                    pic: 'https://shadow.elemecdn.com/app/element/hamburger.9cf7b091-55e9-11e9-a976-7f4d0b07eef6.png'
+                },
+                options: provinceAndCityData,
+                provinceStr: '北京市,天津市,河北省,山西省,内蒙古自治区,辽宁省,吉林省,黑龙江省,上海市,江苏省,浙江省,安徽省,福建省,江西省,山东省,河南省,湖北省,湖南省,广东省,广西壮族自治区,海南省,重庆市,四川省,贵州省,云南省,西藏自治区,陕西省,甘肃省,青海省,宁夏回族自治区,新疆维吾尔自治区,台湾省,香港特别行政区,澳门特别行政区',
+                provinceList: [],
+                dialogTitle: '路由详情',
+                previewDialogVisible: false,
+                previewList: {},
+                previewListJSON: [],
+                imageRootPath,
+                statusCount: 0,
+                row: {},
+                chatbotList: []
+            }
+        },
+        methods: {
+            getPasswayList() {
+                getPasswayList({
+                    curPage: 1,
+                    size: 1000,
+                    chatbotName: '',
+                    userId: ''
+                }).then(res => {
+                    this.chatbotList = res.data.records
+                    // this.param.chatbotId = this.chatbotList[0].id
+                })
+            },
+            loadData() {
+                this.tableLoading = true
+                getRouteCfgList(this.param).then(rsp => {
+                    // console.log('route resp:',rsp)
+                    this.tableLoading = false
+                    this.routeList = rsp.data.records
+                    this.param.total = rsp.data.total
+
+                    for (var i = 0; i < this.routeList.length; i++) {
+                        if (this.routeList[i].controlStatus == 1) {
+                            this.statusCount++
+                        }
+                    }
+                })
+
+            },
+            preview(row) {
+                this.previewDialogVisible = true;
+                this.row = row
+                // this.previewList = JSON.parse(row.content)
+                // // console.log('预览效果数据-----', this.previewList)
+                // if (this.previewList.type==3) {
+                //     this.previewList.title = row.name
+                //     this.previewList.src = this.$options.filters.imgPath(this.previewList.file, 'audio')
+                //     this.previewList.pic = this.$options.filters.imgPath(this.previewList.image, 'audio')
+                //     this.previewList.artist = ' '
+                // }else if (this.previewList.type==10) {
+                //     let previewJson = this.previewList.json
+                //     this.previewListJSON = JSON.parse(previewJson.content)
+                //     console.log('预览效果数据JSON-----',this.previewListJSON)
+                // }
+            },
+            delRouteCfg(id) {
+                this.$confirm('此操作将永久删除该数据, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    delRouteCfg({
+                        routeId: id
+                    }).then(res => {
+                        this.$message.success('删除成功')
+                        this.loadData()
+                    })
+                })
+
+            },
+            //改变页面size
+            handleSizeChange(size) {
+                this.param.size = size
+                this.loadData()
+            },
+            //改变当前页
+            handleCurrentChange(currentPage) {
+                this.param.current = currentPage
+                this.loadData()
+            },
+            search() {
+                this.loadData()
+            },
+            toDetail(row) {
+                this.dialogTitle = '路由详情'
+                // this.dialogVisible = true
+                this.$router.push('/routerManage/edit?routeId=' + row.id)
+            },
+            control(row, status) {
+                row.routeId = row.id + ''
+                // if(status == 1 && this.statusCount >= 1){
+                //     row.controlStatus = row.controlStatus.toString()
+                //     // this.statusCount = 0
+                //     this.$message.error('只允许启动一个默认回复')
+                //     return;
+                // }else{
+                //     // alert('status----'+status+'------statusCount-----'+this.statusCount)
+                //     row.controlStatus = status + ''
+                //     this.statusCount = 0
+                // }
+
+                row.controlStatus = status
+                row.type += ''
+                row.ruleType += ''
+                saveRouteCfg(row).then(rsp => {
+                    if (rsp.success) {
+                        this.$message.success('修改成功')
+                        this.loadData()
+                    } else {
+                        this.$message.error(rsp.message)
+                        this.loadData()
+                    }
+                })
+            },
+            addRouter() {
+                this.dialogTitle = '新增路由'
+                // this.dialogVisible = true
+                this.$router.push('/routerManage/create')
+            },
+
+        },
+        filters: {
+            keyword(value) {
+                let json = JSON.parse(value)
+                let arr = json.map(val => val.value)
+                return arr.join()
+            }
+        },
+        activated() {
+            this.loadData()
+            this.getPasswayList()
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 50 - 40 - 51 - 60 - 47 + 'px'
+        },
+        mounted() {
+            //          this.loadData()
+            //          this.getPasswayList()
+            // let province = this.provinceStr.split(',')
+            // for (let p of province) {
+            //     this.provinceList.push(p)
+            // }
+            // this.loadData()
+            // this.getPasswayList()
+            
+        }
+    }
+</script>
+
+<style lang="less">
+    .router-manage {
+        .el-table__body-wrapper {
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        .keyword-row+.keyword-row {
+            margin-top: 20px;
+        }
+
+        .preview{
+            color: #409EFF;
+            cursor: pointer;
+        }
+
+        .previewHeight {
+            height: 500px;
+            overflow: hidden;
+            // padding-bottom: 10px;
+            position: relative;
+
+            video {
+                height: 100%
+            }
+
+            section {
+                height: 100%
+            }
+        }
+    }
+</style>

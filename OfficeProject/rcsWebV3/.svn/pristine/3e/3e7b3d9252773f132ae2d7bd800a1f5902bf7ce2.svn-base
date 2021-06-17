@@ -1,0 +1,419 @@
+<template>
+    <section class="media-list" @click="resetIndex--">
+        <!-- template search -->
+        <el-form :inline="true" :size="scene==1?'small':'mini'">
+            <!-- <el-form-item label="多媒体类型" v-show="type==3">
+                <el-select v-model="params.type" placeholder="全部类型" @change="selectChange">
+                    <el-option label="全部" value=""></el-option>
+                    <el-option label="图片" value="2"></el-option>
+                    <el-option label="音频" value="3"></el-option>
+                    <el-option label="视频" value="4"></el-option>
+                    <el-option label="文件" value="6"></el-option>
+                </el-select>
+            </el-form-item> -->
+
+            <el-form-item label="模板名称">
+                <el-input clearable v-model="params.name" placeholder="输入模板名称搜索"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="search" icon="el-icon-search">查询</el-button>
+                <el-button type="primary" @click="addMedia">新建模板</el-button>
+            </el-form-item>
+        </el-form>
+        <el-row>
+            <el-col :span="scene == 1 ? 18 : 24">
+                <el-button size="mini" :type="activeGroupType==-1?'primary':''" @click="switchGroup(-1)" round>全部 ({{selectAllGroupIndex}})</el-button>
+                <el-button v-for="(group,index) in groupList" size="mini" round :type="activeGroupType==index?'primary':''" @click="switchGroup(index)">{{group.name}} ({{group.itemCount}})</el-button>
+            </el-col>
+            <el-col :span="scene == 1 ? 6 : 0" style="text-align: right;" class="clearSpacing">
+                <el-button v-if="scene==1" size="mini" round v-show="activeGroupType!=-1&&activeGroupType!=0" @click="editGroup()">编辑分组</el-button>
+                <el-button v-if="scene==1" size="mini" round class="mr10" v-show="activeGroupType!=-1&&activeGroupType!=0" @click="deleteGroup()">删除分组</el-button>
+
+                <el-popover
+                    v-if="scene==1"
+                    placement="bottom"
+                    width="200"
+                    v-model="popVisible">
+                    <!--<div >-->
+                    <!--新建分组-->
+                    <!--</div>-->
+                    <div style="padding: 10px 0 15px 0">
+                        <el-input size="mini" v-model="groupName" placeholder="请输入分组名称"></el-input>
+                    </div>
+
+                    <div style="text-align: right; margin: 0">
+                        <el-button size="mini" type="text" @click="popVisible = false;groupName=''">取消</el-button>
+                        <el-button type="primary" size="mini" @click="saveTemplateCatalog()">确定</el-button>
+                    </div>
+                    <el-button type="primary" size="mini" slot="reference" round @click="popVisible = true;groupName='';catalogIdSelect = 0">新建分组</el-button>
+                </el-popover>
+            </el-col>
+        </el-row>
+
+        <!-- template list -->
+        <el-row class="templateManageHeight" :style="{height:templateManageHeight}">
+            <el-col :span="span" v-for="media in mediaList">
+                <div class="media-col">
+                    <media-item :preData="media" :resetIndex="resetIndex" :scene="scene" v-bind="$attrs" @delMedia="delMedia"
+                        @editMedia="editMedia" v-on="$listeners"></media-item>
+                </div>
+            </el-col>
+        </el-row>
+
+
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="page.current"
+                :page-sizes="pageSizes" :page-size="page.size" layout="total, sizes, prev, pager, next, jumper" :total="page.total">
+            </el-pagination>
+        </div>
+
+
+    </section>
+</template>
+
+<script>
+    import {
+        getTemplateList,
+        getOneResource,
+        saveResource,
+        delTemplate,
+        getResourceCatalogList,
+        saveResourceCatalog,
+        delResourceCatalog,
+        getGroupListAdditionCount,
+        addGroup,
+        editGroup,
+        deleteGroup,
+        getGroupItemCount
+    } from '../../api/api'
+    import PreviewMedia from './PreviewResource'
+    import MediaItem from './MediaItem'
+    export default {
+        name: "TemplateList",
+        components: {
+            PreviewMedia,
+            MediaItem
+        },
+        props: {
+            scene: {
+                default: 1 //1普通模式2组件模式
+            },
+            type: {
+                default: '1' // 1卡片2文本3多媒体
+            },
+            groupType:{
+                default:'TEMPLATE_TEXT'
+            }
+        },
+        data() {
+            return {
+                params: {
+                    name: '',
+                    type: ''
+                },
+                mediaList: [],
+                typeObj: {
+                    '1': '文本',
+                    '2': '图片',
+                    '3': '音频',
+                    '4': '视频',
+                    '5': '卡片',
+                    '6': '文件'
+                },
+                tableLoading: false,
+                page: {
+                    curPage: 1,
+                    size: 6,
+                    total: 0
+                }, // 传入后台参数
+                pageSizes: [6, 12, 18, 24],
+                // activeGroupType: '1',
+                groupName: '',
+                preData: {},
+                dialogVisible: false,
+                currentRow: {},
+                resetIndex: -1,
+                span: 8,
+                mediaListLength:0,//卡片最多12个
+                templateManageHeight:'',
+                popVisible:false,
+                selectAllGroupIndex:0,
+                activeGroupType:-1,
+                groupList:[],
+                catalogIdSelect:0,
+				editIndex:0
+            }
+        },
+        methods: {
+            getGroupItemCount(){
+               getGroupItemCount({groupType:this.groupType,groupId:0}).then(res=>{
+                    this.selectAllGroupIndex = res.code
+               })
+            },
+            getGroupListAdditionCount(){
+                getGroupListAdditionCount({groupType:this.groupType}).then(res=>{
+                    this.groupList = res.data
+                })
+            },
+            deleteGroup(){
+                this.$confirm('此操作将永久删除该分组, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    deleteGroup({id:this.catalogIdSelect}).then(res=>{
+                        if(res.success){
+                            this.catalogIdSelect=0
+                            this.activeGroupType=-1
+                            this.loadData()
+                            this.getGroupListAdditionCount()
+                            this.$message.success("删除成功")
+                        }
+                    })
+                })
+            },
+            editGroup(type) {
+                this.$prompt('请输入新组名', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    inputPattern: /\S/,
+                    inputErrorMessage: '不能为空'
+                }).then(({
+                    value
+                }) => {
+                    this.groupName = value
+                    this.saveTemplateCatalog()
+                }).catch(() => {
+                    // this.$message({
+                    //     type: 'info',
+                    //     message: '取消输入'
+                    // });
+                });
+            },
+            saveTemplateCatalog(){
+                // this.popVisible = true
+                let param = {
+                    name:this.groupName,
+                    type:this.type,
+                    groupType:this.groupType
+                }
+                if(this.catalogIdSelect == 0){
+                    addGroup(param).then(res=>{
+                        if(res.success){
+							this.editIndex = 1
+                            this.getGroupListAdditionCount()
+                            this.loadData()
+                            this.$message.success('新增成功')
+                        }
+                    })
+                }else{
+                    param.groupId = this.catalogIdSelect
+                    editGroup(param).then(res=>{
+                        if(res.success){
+							this.editIndex = 1
+                            this.getGroupListAdditionCount()
+                            this.loadData()
+                            this.$message.success('修改成功')
+                        }
+                    })
+                }
+                this.popVisible = false
+                this.groupName = ''
+
+            },
+            switchGroup(type){
+                for(var i=0;i<this.groupList.length;i++){
+                    if(i == type){
+                        this.catalogIdSelect = this.groupList[i].id
+                        break
+                    }else{
+                        this.catalogIdSelect = this.groupList[0].id
+                    }
+                }
+                if(type == -1){
+                    this.catalogIdSelect = 0
+                }
+                this.activeGroupType = type
+                this.loadData()
+            },
+            handleCurrentChange: function(currentPage) { //改变当前页
+                this.page.curPage = currentPage
+                this.loadData()
+            },
+            handleSizeChange: function(size) { //改变页面size
+                this.page.size = size;
+                this.loadData()
+            },
+            selectCurrentChange(val) {
+                this.currentRow = val;
+                this.$emit('selectRow', val)
+            },
+            search() {
+                this.loadData()
+            },
+            addMedia() {
+                if (this.scene == 2) {
+                    this.$emit('hideMask')
+                }
+                // if (this.type != 3) {
+                //     this.$router.push('/mediaManage/create?type=' + this.params.type)
+                // } else {
+                //     let type = this.params.type || '2'
+                // }
+                // this.loadData()
+                let selectGroupId = this.catalogIdSelect
+                if(selectGroupId == 0 || selectGroupId == this.groupList[0].id){
+                    selectGroupId = this.groupList[0].id
+                }
+                this.$router.push('/mediaManage/create?groupType='+this.groupType+'&selectGroupId='+selectGroupId)
+            },
+            toCheck(row) {
+
+            },
+            toPreview(row) {
+                this.preData = row
+                this.dialogVisible = true
+            },
+            toDetail(row) {
+                this.$router.push('/mediaManage/edit?mid=' + row.id)
+            },
+            deleteMedia(media) {
+                this.$confirm('此操作将永久删除该模板, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    delTemplate({
+                        id: media.id + ''
+                    }).then(rsp => {
+                        if (rsp.success) {
+                            this.$message({
+                                type: 'success',
+                                message: '删除成功!'
+                            });
+							this.loadData()
+                            this.getGroupListAdditionCount()
+                        } else {
+                            this.$message.error(rsp.message)
+                        }
+                    })
+                }).catch(_ => {});
+            },
+            deleteGroup(type) {
+                this.$confirm('此操作将永久删除该分组, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    deleteGroup({groupType:this.groupType,groupId:this.catalogIdSelect}).then(res=>{
+                        if(res.success){
+                            this.$message({
+                                type: 'success',
+                                message: '删除成功!'
+                            });
+                            this.catalogIdSelect = 0
+                            this.activeGroupType=-1
+                            this.getGroupItemCount()
+                            this.getGroupListAdditionCount()
+                            this.loadData()
+                        }
+                    })
+                }).catch(() => {
+                    // this.$message({
+                    //     type: 'info',
+                    //     message: '已取消删除'
+                    // });
+                });
+            },
+            loadData() {
+                let param = {
+                    curPage: this.page.curPage,
+                    size: this.page.size,
+                    groupId:this.catalogIdSelect
+                }
+                // if (this.scene==2) this.params.checkStatus = '1'
+                Object.assign(param, this.params)
+                this.tableLoading = true
+                getTemplateList(param).then(rsp => {
+                    // console.log('media resp:',rsp)
+                    this.tableLoading = false
+                    this.mediaList = rsp.data.records
+                    this.page.total = rsp.data.total
+                })
+            },
+            delMedia(id) {
+                delTemplate({
+                    id: id + ''
+                }).then(rsp => {
+                    if (rsp.success) {
+						this.loadData()
+                        this.getGroupListAdditionCount()
+                        this.getGroupItemCount()
+                        this.$message({
+                            type: 'success',
+                            message: '删除成功!'
+                        });
+                    } else {
+                        this.$message.error(rsp.message)
+                    }
+                })
+            },
+            editMedia(id) {
+                this.$router.push('/mediaManage/edit?groupType='+this.groupType + '&mid=' + id)
+            },
+            selectChange(val) {
+                val ? this.params.mixType = '' : this.params.mixType = '1'
+            }
+        },
+        activated() {
+            this.loadData()
+            this.getGroupListAdditionCount();
+            this.getGroupItemCount()
+        },
+        mounted() {
+            this.templateManageHeight = document.documentElement.clientHeight - 50 - 84 - 45 - 55 - 55 - 36 - 15 - 32 + 'px'
+            if (this.scene == 2) {
+                this.pageSizes = [4, 8, 12, 16]
+                this.page.size = 4
+                this.span = 12
+            }
+            this.getGroupItemCount()
+            this.getGroupListAdditionCount();
+            this.params.groupType = this.groupType
+            // if (this.type == 1) {
+            //     this.params.type = '5'
+            // } else if (this.type == 2) {
+            //     this.params.type = '1'
+            // } else if (this.type == 3 && this.params.type == '') {
+            //     this.params.mixType = '1'
+            // }
+            this.loadData()
+        }
+    }
+</script>
+
+<style lang="less" scoped="scoped">
+    .media-list{
+        .el-form-item{
+            // margin-bottom: 0;
+        }
+    }
+
+    /*.media-list{*/
+    /*&.wrap-container{*/
+    /*margin-top: 5px;*/
+    /*}*/
+    /*.el-row{*/
+    /*margin-bottom: 10px;*/
+    /*margin-right: -20px;*/
+    /*.el-button+.el-button{*/
+    /*margin-left: 0;*/
+    /*}*/
+    /*.el-button{*/
+    /*margin-right: 10px;*/
+    /*margin-bottom: 8px;*/
+    /*}*/
+    /*}*/
+    /*}*/
+</style>

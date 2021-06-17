@@ -1,0 +1,405 @@
+<template>
+    <section class="upload-base">
+        <el-upload :accept="accept" ref="uploadBase" :class="['upload-file-base',{'disabled':disabled}]"
+            :action="adminServer+'file/uploadFile/'" :on-preview="handlePreview" :on-remove="handleRemove"
+            :before-remove="beforeRemove" :before-upload="beforeImgUpload" :on-exceed="handleExceed"
+            :list-type="beImage?'picture-card':'text'" multiple :limit="limit" :data="data" :on-success="handleSuccess"
+            :headers="header" :file-list="fileList">
+            <i v-if="beImage" class="el-icon-plus"></i>
+            <el-button v-else size="small" type="primary">点击上传</el-button>
+            <div slot="tip" class="el-upload__tip">{{tip}}</div>
+            <!--<ul slot="file"><li>1111111</li></ul>-->
+
+        </el-upload>
+
+
+        <el-dialog :visible.sync="dialogVisible" :append-to-body="true" :close-on-click-modal="false">
+            <img v-if="beImage" width="100%" :src="resourceUrl" alt="">
+            <audio v-if="beAudio&&dialogVisible" :src="resourceUrl" controlslist="nodownload" controls></audio>
+            <video v-if="beVideo&&dialogVisible" :src="resourceUrl" controlslist="nodownload" controls
+                disablePictureInPicture style="width: 100%"></video>
+            <a v-if="beFile&&dialogVisible" :href="resourceUrl"
+                :download="resourceUrl.substring(resourceUrl.lastIndexOf('/')+1)"
+                style="text-align: center;display: block">点击下载查看</a>
+        </el-dialog>
+
+    </section>
+</template>
+
+<script>
+    import {
+        getStsToken
+    } from '../api/api'
+    let OSS = require('ali-oss')
+    import {
+        ossRegion,
+        ossBucket,
+        currentEnvironment,
+        adminServer
+    } from '../config/config'
+    import {
+        Utils
+    } from '../plugins/utils'
+
+    export default {
+        name: "UploadFileBase",
+        components: {},
+        data() {
+            return {
+                stsToken: {},
+                fileList: [],
+                beImage: false, // 是否为图片
+                beAudio: false,
+                beVideo: false,
+                beFile: false,
+                beEnclosure:false,//是否为附件
+                disabled: false, // 隐藏图片的添加
+                iId: -1,
+                dialogVisible: false,
+                resourceUrl: '',
+                data: {
+                    folderType: 'resource',
+                    md5FileName: '123435.jpg'
+                },
+                header: {},
+                adminServer,
+                durationTime: 0,
+            }
+        },
+        props: {
+            /**
+             * 文件类型，只能是图片、视频、音频中的一种
+             * image/jpeg,image/png
+             * video/mp4
+             * audio/x-mpeg---(mp3),audio/ogg
+             */
+            accept: {
+                type: String,
+                default: 'image/jpeg,image/png'
+            },
+            limit: {
+                type: Number,
+                default: 3
+            },
+            /**
+             * 可选值
+             * video,audio,image,card,customer,uplink,router,file
+             */
+            folderType: {
+                type: String,
+                default: 'resource'
+            },
+            fileSize: {
+                type: Number,
+                default: 3 //3M
+            },
+            tip: {
+                type: String,
+                default: ''
+            },
+            editFile: {
+                type: String,
+                default: ''
+            }
+        },
+        watch: {
+            fileList: {
+                handler(newValue) {
+                    this.disabled = (newValue.length >= this.limit)
+                },
+                immediate: true
+            }
+
+        },
+        methods: {
+            beforeImgUpload(file) {
+                const isImage = file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/jpg";
+                const isAudio = file.type === "audio/mp3" || file.type === "audio/m4a" || file.type === "audio/amr" ||
+                    file.type === "audio/mpeg";
+                const isVideo = file.type === "video/mp4" || file.type === "video/webm";
+
+                console.log(file)
+                const isEnclosure = file.type === "image/jpeg" || file.type === "image/gif" || file.type === "image/jpg" ||
+                 file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.type === "application/pdf"|| file.name.indexOf('.rar') != -1;
+
+                let size = file.size / 1024 / 1024
+
+                if (this.beImage) {
+                    if (!isImage) {
+                        this.$message.warning('图片只支持jpg/jepg、png、jpg格式');
+                        return false;
+                    }
+                } else if (this.beAudio) {
+                    if (!isAudio) {
+                        this.$message.warning('音频只支持.mp3、.m4a、.amr格式');
+                        return false;
+                    } else {
+                        this.audioTime(file, 'audio')
+                    }
+                } else if (this.beVideo) {
+                    if (!isVideo) {
+                        this.$message.warning('视频只支持.mpeg4、.webm格式');
+                        return false;
+                    } else {
+                        this.audioTime(file,'video')
+                    }
+                } else if (this.beEnclosure) {
+                    if (!isEnclosure) {
+                        this.$message.warning('附件大小不超过10M，.pdf、.doc、.jpg、.gif、.rar格式');
+                        return false;
+                    }
+                }
+
+                if (size > this.fileSize) {
+                    this.$message.warning(`文件大小不能超过【${this.fileSize}MB】`);
+                    return false;
+                }
+
+                let utils = new Utils()
+                this.data.folderType = this.folderType
+
+                return new Promise(resolve => {
+                    utils.getFileMD5(file, name => {
+                        this.data.md5FileName = name + this.getSuffix(file)
+                        resolve(true)
+                    })
+                })
+            },
+            audioTime(file, fileType) {
+                //获取录音时长
+                var url = URL.createObjectURL(file);
+                //经测试，发现audio也可获取视频的时长
+                var audioElement = new Audio(url);
+                audioElement.addEventListener("loadedmetadata", (_event) => {
+                    this.durationTime = parseInt(audioElement.duration)
+                    // console.log(this.durationTime,'---durationTime')
+                    if (fileType == 'audio') {
+                        if (this.durationTime > 90) {
+                            this.$message.warning("上传音频文件时长不能超过90秒!");
+                            this.fileList = []
+                            return;
+                        }
+                    } else {
+                        if (this.durationTime > 60) {
+                            this.$message.warning("上传视频文件时长不能超过60秒!");
+                            this.fileList = []
+                            return;
+                        }
+                    }
+                });
+            },
+            // 覆盖默认的上传行为,需要自己实现成功、失败、进度、fileList
+            requestFunc(obj) {
+
+                let _this = this
+                console.log('requestFunc:', obj)
+                let file = obj.file
+                // 实例化OSS Client
+                let client = new OSS({
+                    region: ossRegion,
+                    accessKeyId: this.stsToken.credentials.accessKeyId,
+                    accessKeySecret: this.stsToken.credentials.accessKeySecret,
+                    stsToken: this.stsToken.credentials.securityToken,
+                    bucket: ossBucket,
+                    secure: true //如果需要https方式，需要该参数
+                });
+
+                async function put() {
+                    try {
+                        let name = _this.getUuid() + _this.getSuffix(file)
+                        let fileDirectory = currentEnvironment + '/' + _this.folderType + '/' + name
+                        console.log('name:', name)
+                        // object表示上传到OSS的名字，可自己定义
+                        // file浏览器中需要上传的文件，支持HTML5 file 和 Blob类型
+                        // client.put('object', file);
+                        let r1 = await client.put(fileDirectory, file);
+                        console.log('put success: %j', r1);
+                        if (_this.accept == 'video/mp4') {
+                            _this.$store.commit('SET_VIDEO_URL', r1.url)
+                        }
+                        // setTimeout(_=>{
+                        _this.fileList.push({
+                            name: file.name,
+                            url: r1.url,
+                            newName: name
+                        })
+                        // },1150)
+                        // let r2 = await client.get('object');
+                        // console.log('get success: %j', r2);
+                    } catch (e) {
+                        console.error('error: %j', e);
+                    }
+                }
+                put();
+            },
+
+
+            handleRemove(file, fileList) {
+                console.log('remove:%j', file, fileList);
+                let uid = file.uid
+                let index = -1
+                for (let i = 0; i < this.fileList.length; i++) {
+                    if (this.fileList[i].uid == uid) {
+                        index = i
+                        break
+                    }
+                }
+                // console.log('this.filelist:',this.fileList)
+                // console.log('index:',index)
+                if (index != -1) {
+                    this.fileList.splice(index, 1)
+                }
+            },
+            handleSuccess(response, file, fileList) {
+                // console.log('response:',response)
+                if (response.success) {
+                    this.fileList.push({
+                        name: file.name,
+                        url: response.data.url,
+                        newName: response.data.md5FileName
+                    })
+                    this.fileTimeOut(response, file, fileList)
+                }
+            },
+            fileTimeOut(response, file, fileList) {
+                let t_this = this
+                setTimeout(function() {
+                    // console.log('uploadBase-----',t_this.fileList)
+                    t_this.fileList = []
+                    t_this.fileList.push({
+                        name: file.name,
+                        url: response.data.url,
+                        newName: response.data.md5FileName
+                    })
+                    // document.getElementsByClassName('el-upload-list__item-thumbnail')[0].src = response.data.url
+                }, 4500);
+            },
+
+            handlePreview(file) {
+                // console.log('preview:',file);
+                this.resourceUrl = file.url;
+                this.dialogVisible = true;
+            },
+            // 文件超出个数限制时的钩子
+            handleExceed(files, fileList) {
+                // this.$message.warning(`当前限制选择 ${this.limit} 个文件，本次选择了 ${files.length} 个文件，共选择了 ${files.length + fileList.length} 个文件`);
+                this.$message.warning(`当前只允许上传【${this.limit}个】文件`)
+            },
+            beforeRemove(file, fileList) {
+                // return this.$confirm(`确定移除 ${ file.name }？`);
+                clearTimeout(this.fileTimeOut())
+            },
+
+            getSuffix(file) {
+                let pos = file.name.lastIndexOf('.')
+                // console.log(file.name.substring(pos))
+                return file.name.substring(pos)
+            },
+
+            //生成UUID
+            getUuid() {
+                let len = 32; //32长度
+                let radix = 16; //16进制
+                let chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
+                let uuid = [],
+                    i;
+                radix = radix || chars.length;
+                if (len) {
+                    for (i = 0; i < len; i++) uuid[i] = chars[0 | Math.random() * radix];
+                } else {
+                    let r;
+                    uuid[8] = uuid[13] = uuid[18] = uuid[23] = '-';
+                    uuid[14] = '4';
+                    for (i = 0; i < 36; i++) {
+                        if (!uuid[i]) {
+                            r = 0 | Math.random() * 16;
+                            uuid[i] = chars[(i == 19) ? (r & 0x3) | 0x8 : r];
+                        }
+                    }
+                }
+                return uuid.join('');
+            },
+
+            getStsToken() {
+                //从后台获取stsToken
+                getStsToken().then(rsp => {
+                    if (rsp.success) {
+                        this.stsToken = rsp.data;
+                        // console.log('this.stsToken:',this.stsToken)
+                    } else {
+                        this.$message.error(rsp.message);
+                    }
+                })
+            },
+            getFileString() {
+                let fileString = ''
+                this.fileList.forEach((value, index) => {
+                    if (this.fileList.length == index + 1) {
+                        fileString += (value.newName || value.name);
+                    } else {
+                        fileString += (value.newName || value.name) + ",";
+                    }
+                });
+                return fileString
+            },
+            setFileString(fileString, type) { //type--->'image','video'
+                if (fileString) {
+                    fileString.split(",").forEach(value => {
+                        let object = {};
+                        object.name = value;
+                        object.url = this.$options.filters.imgPath(value, type)
+                        this.fileList.push(object);
+                    })
+                }
+            }
+        },
+        destroyed() {
+            clearInterval(this.iId)
+        },
+        mounted() {
+            // this.getStsToken()
+            // this.iId = setInterval(()=>{
+            //     this.getStsToken()
+            // },10*60*1000)
+
+            let acceptType = this.accept || ''
+            if (acceptType.indexOf('image') != -1) {
+                this.beImage = true
+            } else if (acceptType.indexOf('video') != -1) {
+                this.beVideo = true
+            } else if (acceptType.indexOf('audio') != -1) {
+                this.beAudio = true
+            } else if (acceptType == '*/*' || acceptType ==
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+                this.beFile = true
+            } else if (acceptType.indexOf('enclosure') != -1) { //附件
+                this.beEnclosure = true
+            }
+
+            this.header.jwtToken = this.$store.state.user.jwtToken
+            if(this.editFile != '' && this.editFile != undefined){
+                console.log('编辑文件：',this.editFile)
+                this.fileList = JSON.parse(this.editFile)
+            }
+        },
+        activated() {
+            this.fileList = []
+        }
+    }
+</script>
+
+<style lang="less">
+    .upload-base {
+        .el-upload-list__item-name {
+            &>i {
+                display: none;
+            }
+        }
+
+        .upload-file-base {
+            &.disabled .el-upload--picture-card {
+                display: none;
+            }
+        }
+    }
+</style>

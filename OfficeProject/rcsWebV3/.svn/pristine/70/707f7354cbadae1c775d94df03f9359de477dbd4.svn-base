@@ -1,0 +1,244 @@
+<template>
+    <section class="log-manage wrap-container">
+        <el-form :inline="true" :model="logSearch" size="small">
+            <el-form-item label="日志类型">
+                <el-select v-model="logSearch.type" placeholder="请选择类型">
+                    <el-option label="全部" :value="0"></el-option>
+                    <el-option label="操作日志" :value="1"></el-option>
+                    <el-option label="运行日志" :value="2"></el-option>
+                    <el-option label="安全日志" :value="3"></el-option>
+                    <el-option label="维护日志" :value="4"></el-option>
+                    <el-option label="通道数据日志" :value="5"></el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="操作时间">
+                <el-date-picker v-model="logSearch.queryTime" type="daterange" :editable="false" value-format="yyyy-MM-dd"
+                    range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期">
+                </el-date-picker>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="changeTab()" icon="el-icon-search">查询</el-button>
+                <el-button type="primary" @click="exportExcel">导出</el-button>
+            </el-form-item>
+        </el-form>
+
+        <!-- 列表区 -->
+        <el-button @click="deleteTemp" size="mini" style="margin-bottom: 10px">删除</el-button>
+        <el-table :data="logList" fit v-loading="tableLoading" size="small" border :header-cell-style="{'background-color': '#fafafa'}"
+            @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="55" align="center">
+            </el-table-column>
+            <el-table-column prop="type" label="日志类型" align="center">
+                <template slot-scope="scope">
+                    {{scope.row.type==1?'操作日志':scope.row.type==2?'运行日志':scope.row.type==3?'安全日志':scope.row.type==4?'维护日志':scope.row.type==5?'通道数据日志':''}}
+                </template>
+            </el-table-column>
+            <el-table-column prop="description" label="日志描述" align="center"></el-table-column>
+            <el-table-column prop="userName" label="操作人员" align="center"></el-table-column>
+            <el-table-column prop="roleName" label="操作角色" align="center"></el-table-column>
+            <el-table-column prop="loginIP" label="IP地址" align="center"></el-table-column>
+            <el-table-column prop="createTime" label="操作时间" align="center"></el-table-column>
+        </el-table>
+
+        <!-- 页码区 -->
+        <div class="block">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="page.curPage"
+                :page-sizes="[10, 20, 50, 200, 500]" :page-size="page.size" layout="total, sizes, prev, pager, next, jumper"
+                :total="page.total">
+            </el-pagination>
+        </div>
+
+    </section>
+</template>
+
+<script>
+    import {
+        getPageLogs,
+        delPageLogs
+    } from '../../api/api.js'
+    export default {
+        data() {
+            return {
+                page: { //页码区
+                    curPage: 1,
+                    size: 10,
+                    total: 0,
+                },
+                editDialog: false,
+                tableLoading: false,
+                logList: [],
+                log: {},
+                logSearch: {
+                    queryTime: [],
+                    operatorName: '',
+                    type: 0
+                },
+                delListId: []
+            }
+        },
+        methods: {
+            //选择列表数据
+            handleSelectionChange(val) {
+                this.delListId = val;
+            },
+            //删除
+            deleteTemp() {
+                if (this.delListId.length > 0) {
+                    let t_this = this
+                    let tips = "是否确认删除？";
+                    this.$confirm(tips, '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        let delIds = this.delListId.map(val => val.id)
+                        delPageLogs({
+                            ids: delIds.join()
+                        }).then(function(res) {
+                            if (res.success) {
+                                t_this.$message.success("删除成功");
+                                t_this.loadLog();
+                            } else {
+                                t_this.$message.error(res.message);
+                            }
+                        })
+                    })
+                } else {
+                    this.$message.warning('没有选择数据')
+                }
+            },
+            handleCurrentChange: function(currentPage) { //改变当前页
+                let _self = this
+                _self.page.curPage = currentPage
+                _self.loadLog()
+            },
+            handleSizeChange: function(size) { //改变页面size
+                let _self = this
+                _self.page.size = size;
+                _self.loadLog()
+            },
+            loadLog: function() { //加载列表
+                let _self = this
+                _self.tableLoading = true
+                _self.logList = [];
+                getPageLogs({
+                    curPage: _self.page.curPage,
+                    size: _self.page.size,
+                    startTime: _self.logSearch.queryTime[0],
+                    endTime: _self.logSearch.queryTime[1],
+                    userName: _self.logSearch.userName,
+                    type: _self.logSearch.type
+                }).then(function(rsp) {
+                    // console.log(rsp)
+                    _self.tableLoading = false
+                    if (rsp.success) {
+                        _self.logList = rsp.data.records;
+                        _self.page.total = rsp.data.total
+                    } else {
+                        _self.$message.error(rsp.message);
+                    }
+                })
+            },
+            deleteLogInfo(value) {
+                let _self = this;
+                _self.log.status = 0;
+                _self.log.operationLogId = value.operationLogId;
+                // console.log('log---',value)
+                let tips = "是否确认删除？";
+
+                _self.$confirm(tips, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    delPageLogs({
+                        id: value.id
+                    }).then(function(response) {
+                        if (response.success) {
+                            _self.$message.success("操作成功");
+                            _self.loadLog();
+                        } else {
+                            _self.$message.error(response.message);
+                        }
+                    })
+                }).catch(() => {
+                    //取消
+                });
+            },
+            changeTab() {
+                let _self = this;
+                if (!_self.logSearch.queryTime) {
+                    //加这次判断是因为在选中时间后，在清空时间，会出现queryTime为null的情况
+                    _self.logSearch.queryTime = [];
+                }
+                _self.page.current = 1;
+                _self.loadLog();
+            },
+            exportExcel() {
+                let head = ['日志类型', '日志描述', '操作人员', '操作角色', 'IP地址', '操作时间']
+                let list = this.logList.map(val => {
+                    let type = val.type == 1 ? '操作日志' : val.type == 2 ? '运行日志' : val.type == 3 ? '安全日志' : val.type ==
+                        4 ? '维护日志' : val.type == 5 ? '通道数据日志' : ''
+                    return [type, val.description, val.userName, val.roleName, val.loginIP, val.createTime]
+                })
+                list.unshift(head)
+                this.$array2Excel(list, '日志')
+            }
+        },
+        mounted() {
+            this.loadLog();
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement.clientHeight -
+                50 - 84 - 40 - 51 - 38 - 40 - 72 + 'px'
+        }
+    }
+</script>
+<style lang="less">
+    .log-manage {
+        .el-table__body-wrapper{
+            overflow: auto;
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+        .el-input {
+            margin-bottom: 15px;
+
+            input::-webkit-outer-spin-button,
+            input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+            }
+
+            input[type="number"] {
+                -moz-appearance: textfield;
+            }
+        }
+
+        .el-pagination {
+            margin-top: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .el-date-editor .el-range-separator {
+            width: 10%;
+        }
+
+        .el-form-item {
+            margin-bottom: 1px;
+        }
+
+    }
+</style>

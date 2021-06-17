@@ -1,0 +1,1882 @@
+<template>
+    <section class="template-detail wrap-container">
+        <el-form ref="form" :model="form" label-width="120px" size="small">
+            <!-- <div class="title">基本信息</div> -->
+            <el-card class="box-card">
+              <div slot="header" class="clearfix">
+                <span>基本信息</span>
+              </div>
+              <div class="text item">
+                <el-row>
+                    <el-col :span="8">
+                        <el-form-item label="请选择chabot" class="is-required templateWidth">
+                            <el-select v-model="form.chatbotId" placeholder="请选择">
+                                <el-option v-for="(item,index) in chatbotList" :key="'chatbotId'+index" :label="item.chatbotName"
+                                    :value="item.id"></el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="模板名称" class="is-required templateWidth">
+                            <el-input v-model="form.name" maxlength="20" width="40%" show-word-limit placeholder="请输入模板名称"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-form-item label="选择模板分组" class="templateWidth">
+                            <div>
+                                <el-select v-model="form.groupId" placeholder="请选择模板分组" size="medium" @change="change()">
+                                    <el-option v-for="item in groupList" :key="item.id" :label="item.name" :value="item.id">
+                                    </el-option>
+                                </el-select>
+                            </div>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="8">
+                        <el-form-item label="支持回落">
+                            <div class="huiluo">
+                                <div>
+                                    <el-switch v-model="rollback"></el-switch>
+                                    <el-tooltip class="item" effect="dark" content="" placement="top-start">
+                                        <div slot="content" style="width: 210px;line-height: 1.5">
+                                            当接收手机不支持5G消息时候，系统自动转换成普通短信下发给该手机，
+                                            该功能需要运营商网关支持；如果运营商网关不支持回落，请将不支持
+                                            回落的号码导出通过另外普通短信渠道发送
+                                        </div>
+                                        <i class="el-icon-warning"></i>
+                                    </el-tooltip>
+                                </div>
+                            </div>
+                        </el-form-item>
+                    </el-col>
+                    <div v-if="rollback">
+                        <el-col :span="8">
+                            <el-form-item label="回落类型" prop="fallbackSupportedType" class=" templateWidth">
+                                <el-select v-model="fallbackSupportedType" placeholder="请选择">
+                                    <el-option label="视频短信" :value="1"></el-option>
+                                    <el-option label="普通短信" :value="2"></el-option>
+                                </el-select>
+                            </el-form-item>
+                        </el-col>
+                        <el-col :span="8">
+                            <el-form-item label="回落内容">
+                                <div v-if="mmsContent.length <= 0">
+                                    <el-button @click="mmsDialogFlag=true">选择回落内容</el-button>
+                                </div>
+                                <div v-else>
+                                    <el-tag :key="tag" v-for="tag in mmsContent" closable :disable-transitions="false"
+                                        @close="mmsContentClose(tag)">
+                                        {{tag.mmsId}}
+                                    </el-tag>
+
+                                </div>
+                            </el-form-item>
+                        </el-col>
+                    </div>
+                </el-row>
+              </div>
+            </el-card>
+
+
+            <!--<el-form-item label="关键词">-->
+            <!--<el-input v-model="form.keys"></el-input>-->
+            <!--</el-form-item>-->
+            <!--<el-form-item label="分组">-->
+            <!--<el-select v-model="form.region" placeholder="请选择分组">-->
+            <!--<el-option label="未分组" value="shanghai"></el-option>-->
+            <!--<el-option label="分组一" value="beijing"></el-option>-->
+            <!--</el-select>-->
+            <!--</el-form-item>-->
+            <!-- <el-form-item label="消息类型" class="is-required">
+                <el-radio-group v-model="form.type" @change="radioChange">
+                    <el-radio label="1">文本</el-radio>
+                    <el-radio label="2">图片</el-radio>
+                    <el-radio label="3">音频</el-radio>
+                    <el-radio label="4">视频</el-radio>
+                    <el-radio label="6">文件</el-radio>
+                    <el-radio label="5">卡片</el-radio>
+                </el-radio-group>
+            </el-form-item> -->
+
+            <!-- <div class="title">消息内容</div> -->
+            <!-- 消息内容 start-->
+
+            <el-form-item label="模板内容" class="is-required">
+                <!--card start-->
+                <section v-show="form.groupType == 'TEMPLATE_CARD'" class="card">
+
+                    <el-carousel :interval="4000" type="card" :autoplay="false">
+                        <el-carousel-item v-for="(card,index) in cardList" :key="'card'+index" align="center">
+                          <div class="card-item">
+                                  <section class="preview-resource">
+                                      <div class="preview">
+                                          <div class="mobile-header"></div>
+                                          <div class="mobile-main scrollbar">
+                                              <div class="box">
+                                                  <div class="uploadFile">
+                                                      <div v-if="(types[index]!='RESOURCE_DOCMENT' && !images[index])||(types[index]=='RESOURCE_DOCMENT' && !files[index])"
+                                                          @click="mediaSelectResourcs();cardIndex=index;resourceType='RESOURCE_CARD'"
+                                                          class="uploadAdd el-icon-plus"></div>
+                                                      <!-- <el-button type="primary"  v-if="(types[index]!=6&&!images[index])||(types[index]==6&&!files[index])" @click="dialogVisible=true;cardIndex=index" >选择资源</el-button> -->
+                                                      <div v-if="(types[index]!='RESOURCE_DOCMENT' && !images[index])||(types[index]=='RESOURCE_DOCMENT' && !files[index])"
+                                                          class="addSuCai">添加素材(必填)</div>
+                                                      <div v-else-if="types[index]=='RESOURCE_IMAGE'" class="file-wrap card">
+                                                          <el-image :src="images[index] | imgPath('image')"
+                                                              style="width: 100%;height: 100%" fit="cover"></el-image>
+                                                          <i class="del-res theme-color-danger el-icon-error"
+                                                              @click="delFiles(index)"></i>
+                                                      </div>
+                                                      <div v-else-if="types[index]=='RESOURCE_AUDIO'" class="file-wrap audio">
+                                                          <aplayer :music="musicObjArr[index]" loop="none" preload="metadata" />
+                                                          <i class="del-res theme-color-danger el-icon-error"
+                                                              @click="delFiles(index)"></i>
+                                                      </div>
+                                                      <div v-else-if="types[index]=='RESOURCE_VIDEO'" class="file-wrap video">
+                                                          <video width="100%" height="150px" controls controlslist="nodownload"
+                                                              ref="video" disablePictureInPicture
+                                                              :src="files[index] | imgPath('video')"
+                                                              :poster="images[index] | imgPath('video')"></video>
+                                                          <i class="del-res theme-color-danger el-icon-error"
+                                                              @click="delFiles(index)"></i>
+                                                      </div>
+                                                      <div v-else-if="types[index]=='RESOURCE_DOCMENT'" class="file-wrap file">
+                                                          <i class="el-icon-folder" style="font-size: 14px;">
+                                                              {{files[index]}}
+                                                          </i>
+                                                          <i class="del-res theme-color-danger el-icon-error"
+                                                              @click="delFiles(index)"></i>
+                                                      </div>
+                                                  </div>
+                                                  <div class="cardTitle">
+                                                      <el-input v-model="card.name" maxlength="64" show-word-limit
+                                                          placeholder="卡片标题(必填)"></el-input>
+                                                  </div>
+                                                  <div class="cardContent">
+                                                      <el-input type="textarea" v-model="card.text" rows="5" maxlength="500"
+                                                          show-word-limit placeholder="卡片内容(选填)"></el-input>
+                                                  </div>
+
+                                                  <div class="cardButton">
+                                                      <div class="suggest-container">
+                                                          <div class="suggest-item" v-for="(suggest,index) in card.buttonList"
+                                                              :key="'suggest'+index">
+                                                              {{suggest.displayText}}
+                                                              <div class="btn-hover" @dragstart="dragStart2(index)"
+                                                                  @dragover.prevent="dragOver2(index,card.buttonList)"
+                                                                  draggable="true">
+                                                                  <span @click="delButton(index,card.buttonList)">
+                                                                      <i class="el-icon-delete"></i>
+                                                                  </span>
+                                                                  <span @click="editSuggestButton(index,suggest,2,card)">
+                                                                      <i class="el-icon-edit"></i>
+                                                                  </span>
+                                                              </div>
+                                                          </div>
+                                                          <div class="cardFont"
+                                                              @click="dialogVisibleSuggest = true;suggestButton={type:1};suggestFlag=-1;dialogTitle='按钮';activeCard=card"
+                                                              v-show="card.buttonList.length<4">
+                                                              <i class="el-icon-plus"></i> 添加按钮
+                                                          </div>
+                                                      </div>
+                                                  </div>
+
+                                                  <!-- <div class="suspensionButton">
+                                                     <div class="suggest-container">
+                                                         <div class="suggest-item" v-for="(suggest,index) in suggestList" :key="'suggest'+index">
+                                                             {{suggest.name}}
+                                                             <div class="btn-hover" @dragstart="dragStart1(index)" @dragover.prevent="dragOver1(index)"
+                                                                 draggable="true">
+                                                                 <span @click="delButton(index,suggestList)">
+                                                                     <i class="el-icon-delete"></i>
+                                                                 </span>
+                                                                 <span @click="editSuggestButton(index,suggest,1)">
+                                                                     <i class="el-icon-edit"></i>
+                                                                 </span>
+                                                             </div>
+                                                         </div>
+                                                         <div class="suggest-item" @click="dialogVisibleSuggest = true;suggestButton={type:1};suggestFlag=-1;dialogTitle='建议回复'"
+                                                             v-show="suggestList.length<11">
+                                                             <i class="el-icon-plus"></i> 添加悬浮菜单
+                                                         </div>
+                                                     </div>
+                                                 </div> -->
+
+                                              </div>
+                                          </div>
+                                          <div class="mobile-footer"></div>
+                                      </div>
+                                  </section>
+
+                                  <div class="divider" align="center">
+                                      <!--<el-divider content-position="center">卡片{{index+1}}</el-divider>-->
+                                      <i @click="sortCard(index,1)" v-if="index!=0"
+                                          class="el-icon-top theme-color"></i>
+                                      <i @click="sortCard(index,-1)" v-if="index!=cardList.length-1"
+                                          class="el-icon-bottom theme-color"></i>
+                                  </div>
+
+                                  <div @click="delCard(index)" class="del"><i class="el-icon-error"></i></div>
+                          </div>
+                        </el-carousel-item>
+                      </el-carousel>
+                    <div v-show="cardList.length<maxCardSize" class="add-card" align="center">
+                        <el-button size="mini" plain round @click="addCard" styke="cursor: pointer;">+ 新增卡片</el-button>
+                    </div>
+                </section>
+                <!--card end-->
+
+                <!--text start-->
+                <section v-show="form.groupType == 'TEMPLATE_TEXT'">
+                    <el-form-item>
+                        <section class="preview-resource">
+                            <div class="preview">
+                                <div class="mobile-header" style="width: 400px;"></div>
+                                <div class="mobile-main scrollbar" style="width: 400px;">
+                                    <div class="box" style="padding: 10px;margin-top: 30%;">
+                                        <el-input type="textarea" v-model="form.text" rows="10" maxlength="1000"
+                                            placeholder="输入回复内容"></el-input>
+                                        <!-- <div class="suspensionButton">
+                                           <div class="suggest-container">
+                                               <div class="suggest-item" v-for="(suggest,index) in suggestList" :key="'suggest'+index">
+                                                   {{suggest.name}}
+                                                   <div class="btn-hover" @dragstart="dragStart1(index)" @dragover.prevent="dragOver1(index)"
+                                                       draggable="true">
+                                                       <span @click="delButton(index,suggestList)">
+                                                           <i class="el-icon-delete"></i>
+                                                       </span>
+                                                       <span @click="editSuggestButton(index,suggest,1)">
+                                                           <i class="el-icon-edit"></i>
+                                                       </span>
+                                                   </div>
+                                               </div>
+                                               <div class="suggest-item" @click="dialogVisibleSuggest = true;suggestButton={type:1};suggestFlag=-1;dialogTitle='建议回复'"
+                                                   v-show="suggestList.length<11">
+                                                   <i class="el-icon-plus"></i> 添加悬浮菜单
+                                               </div>
+                                           </div>
+                                       </div> -->
+                                    </div>
+                                </div>
+                                <div class="mobile-footer" style="width: 400px;"></div>
+                            </div>
+                        </section>
+                    </el-form-item>
+                </section>
+                <!--text end-->
+
+                <!--image start-->
+                <section v-show="form.groupType == 'TEMPLATE_IMAGE'">
+                    <el-form-item>
+                        <section class="preview-resource">
+                            <div class="preview">
+                                <div class="mobile-header"></div>
+                                <div class="mobile-main scrollbar">
+                                    <div class="box">
+                                        <div class="uploadFile">
+                                            <div v-if="images.length==0"
+                                                @click="mediaSelectResourcs();resourceType='RESOURCE_IMAGE'"
+                                                class="uploadAdd el-icon-plus"></div>
+                                            <div v-if="images.length==0" class="addSuCai">添加图片素材</div>
+                                            <div v-else class="file-wrap image">
+                                                <el-image :src="images[0] | imgPath('image')"
+                                                    style="width: 100%;height: 100%" fit="cover"></el-image>
+                                                <i class="del-res theme-color-danger el-icon-error"
+                                                    @click="delFiles"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mobile-footer"></div>
+                            </div>
+                        </section>
+                    </el-form-item>
+                </section>
+                <!--image end-->
+
+                <!--audio start-->
+                <section v-show="form.groupType == 'TEMPLATE_AUDIO'" class="audioWidth">
+                    <el-form-item>
+                        <section class="preview-resource">
+                            <div class="preview">
+                                <div class="mobile-header"></div>
+                                <div class="mobile-main scrollbar">
+                                    <div class="box">
+                                        <div class="uploadFile">
+                                            <div v-if="images.length==0"
+                                                @click="mediaSelectResourcs();resourceType='RESOURCE_AUDIO'"
+                                                class="uploadAdd el-icon-plus"></div>
+                                            <div v-if="images.length==0" class="addSuCai">添加音频素材</div>
+                                            <div v-else class="file-wrap image">
+                                                <aplayer :music="musicObj" loop="none" preload="metadata" />
+                                                <i class="del-res theme-color-danger el-icon-error"
+                                                    @click="delFiles"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mobile-footer"></div>
+                            </div>
+                        </section>
+                    </el-form-item>
+                </section>
+                <!--audio end-->
+
+                <!--video start-->
+                <section v-show="form.groupType =='TEMPLATE_VIDEO'" class="videoWidth">
+                    <el-form-item>
+                        <section class="preview-resource">
+                            <div class="preview">
+                                <div class="mobile-header"></div>
+                                <div class="mobile-main scrollbar">
+                                    <div class="box">
+                                        <div class="uploadFile">
+                                            <div v-if="images.length==0"
+                                                @click="mediaSelectResourcs();resourceType='RESOURCE_VIDEO'"
+                                                class="uploadAdd el-icon-plus"></div>
+                                            <div v-if="images.length==0" class="addSuCai">添加视频素材</div>
+                                            <div v-else class="file-wrap image">
+                                                <video width="100%" height="292" controls controlslist="nodownload"
+                                                    ref="video" disablePictureInPicture
+                                                    :src="files[0] | imgPath('video')"
+                                                    :poster="images[0] | imgPath('video')"></video>
+                                                <i class="del-res theme-color-danger el-icon-error"
+                                                    @click="delFiles"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mobile-footer"></div>
+                            </div>
+                        </section>
+                    </el-form-item>
+                </section>
+                <!--video end-->
+
+                <!--file start-->
+                <section v-show="form.groupType == 'TEMPLATE_DOCMENT'">
+                    <el-form-item>
+                        <section class="preview-resource">
+                            <div class="preview">
+                                <div class="mobile-header"></div>
+                                <div class="mobile-main scrollbar">
+                                    <div class="box">
+                                        <div class="uploadFile">
+                                            <div v-if="files.length==0"
+                                                @click="mediaSelectResourcs();resourceType='RESOURCE_DOCMENT'"
+                                                class="uploadAdd el-icon-plus"></div>
+                                            <div v-if="files.length==0" class="addSuCai">添加文档素材</div>
+                                            <div v-else class="file-wrap image">
+                                                <i class="el-icon-folder" style="font-size: 14px;">
+                                                    {{files[0]}}
+                                                </i>
+                                                <i class="del-res theme-color-danger el-icon-error"
+                                                    @click="delFiles"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mobile-footer"></div>
+                            </div>
+                        </section>
+                    </el-form-item>
+                </section>
+                <!--file end-->
+            </el-form-item>
+
+            <!-- 消息内容 end-->
+            <!-- <div class="title">建议回复</div> -->
+            <el-form-item label="建议回复">
+                <div class="suggest-container">
+                    <div class="suggest-item" v-for="(suggest,index) in suggestList" :key="'suggest'+index">
+                        {{suggest.displayText}}
+                        <div class="btn-hover" @dragstart="dragStart1(index)" @dragover.prevent="dragOver1(index)"
+                            draggable="true">
+                            <span @click="delButton(index,suggestList)">
+                                <i class="el-icon-delete"></i>
+                            </span>
+                            <span @click="editSuggestButton(index,suggest,1)">
+                                <i class="el-icon-edit"></i>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="suggest-add"
+                        @click="dialogVisibleSuggest = true;suggestButton={type:1};suggestFlag=-1;dialogTitle='建议回复'"
+                        v-show="suggestList.length<11">
+                        <i class="el-icon-plus"></i>
+                    </div>
+                </div>
+            </el-form-item>
+
+
+
+            <!-- <div class="title">消息提交</div> -->
+            <el-form-item style="margin-top: 20px">
+                <el-button type="primary" @click="onSubmit">保存</el-button>
+            </el-form-item>
+        </el-form>
+
+        <el-dialog title="选择资源" :visible.sync="dialogVisible" width="70%" class="ziYuanHeight" center
+            :close-on-click-modal="false">
+            <resource-list v-if="dialogVisible" :chatbotId="form.chatbotId" scene="2" :groupType="resourceType"
+                @selectRow="selectRow"></resource-list>
+        </el-dialog>
+
+        <!-- 回落内容 start-->
+        <el-dialog title="回落内容" :visible.sync="mmsDialogFlag" width="80%" class="mmsTaskManageHeight" center
+            :close-on-click-modal="false">
+            <mms-template-manage v-if="mmsDialogFlag" :scene="2" @mmsContentInfo="mmsContentInfo"></mms-template-manage>
+        </el-dialog>
+        <!-- 回落内容 end -->
+
+        <!--建议回复start-->
+        <el-dialog :title="dialogTitle" :visible.sync="dialogVisibleSuggest" width="50%" center
+            :close-on-click-modal="false">
+
+            <el-form ref="form" :rules="rules" :model="suggestButton" label-width="120px" size="small">
+                <el-form-item label="按钮类型">
+                    <el-radio-group class="buttonGroupType" v-model="suggestButton.type">
+                        <el-row>
+                            <el-col :span="6">
+                                <el-radio :label="1">关键词</el-radio>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-radio :label="2">URL配置</el-radio>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-radio :label="3">拨打电话</el-radio>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-radio :label="4">视频电话</el-radio>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="6">
+                                <el-radio :label="5">地图</el-radio>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-radio :label="6">请求位置推送</el-radio>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-radio :label="7">日历</el-radio>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-radio :label="8">发送文本消息</el-radio>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="12">
+                                <el-radio :label="9">录制音视频</el-radio>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-radio :label="10">共享设备信息</el-radio>
+                            </el-col>
+                        </el-row>
+                    </el-radio-group>
+                </el-form-item>
+                <!-- 每个类型都存在 -->
+                <el-form-item label="按钮名称" prop="displayText">
+                    <el-input v-model="suggestButton.displayText" placeholder="请输入按钮名称" maxlength="25" show-word-limit>
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="返回数据" prop="data">
+                    <el-input v-model="suggestButton.data" placeholder="请输入返回数据" maxlength="25" show-word-limit>
+                    </el-input>
+                </el-form-item>
+
+                <!-- url配置 -->
+                <el-form-item label="URL地址" prop="url" v-if="suggestButton.type == 2">
+                    <el-input v-model="suggestButton.url" placeholder="请输入URL地址"></el-input>
+                </el-form-item>
+
+                <!-- 电话 -->
+                <el-form-item label="联系方式" prop="phoneNumber" v-if="suggestButton.type == 3">
+                    <el-input v-model="suggestButton.phoneNumber" placeholder="请输入联系方式"></el-input>
+                </el-form-item>
+
+                <!-- 视频电话 -->
+                <el-form-item label="视频电话" prop="phoneNumber" v-if="suggestButton.type == 4">
+                    <el-input v-model="suggestButton.phoneNumber" placeholder="请输入视频电话"></el-input>
+                </el-form-item>
+
+                <!-- 地图 -->
+                <el-form-item label="纬度" prop="latitude" v-if="suggestButton.type == 5">
+                    <el-input v-model="suggestButton.latitude" placeholder="请输入纬度"></el-input>
+                </el-form-item>
+                <el-form-item label="经度" prop="longitude" v-if="suggestButton.type == 5">
+                    <el-input v-model="suggestButton.longitude" placeholder="请输入经度"></el-input>
+                </el-form-item>
+                <el-form-item label="查询" prop="query" v-if="suggestButton.type == 5">
+                    <el-input v-model="suggestButton.query" placeholder="请输入查询"></el-input>
+                </el-form-item>
+                <el-form-item label="标签" prop="label" v-if="suggestButton.type == 5">
+                    <el-input v-model="suggestButton.label" placeholder="请输入标签"></el-input>
+                </el-form-item>
+
+                <!-- 请求位置推送 -->
+                <!-- <el-form-item label="请求位置推送" prop="requestLocationPush" v-if="suggestButton.type == 6">
+                    <el-input v-model="suggestButton.requestLocationPush" placeholder="请输入请求位置推送"></el-input>
+                </el-form-item> -->
+
+                <!-- 地图 -->
+                <el-form-item label="时间" prop="dateTime" v-if="suggestButton.type == 7">
+                    <el-date-picker v-model="suggestButton.dateTime" type="datetimerange" range-separator="至"
+                        start-placeholder="开始日期" value-format="yyyy-MM-dd HH:mm:ss" end-placeholder="结束日期">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item label="主题" prop="title" v-if="suggestButton.type == 7">
+                    <el-input v-model="suggestButton.title" placeholder="请输入主题"></el-input>
+                </el-form-item>
+                <el-form-item label="描述" prop="description" v-if="suggestButton.type == 7">
+                    <el-input v-model="suggestButton.description" placeholder="请输入描述"></el-input>
+                </el-form-item>
+
+                <!-- 终端向特定对象发送文本消息 -->
+                <el-form-item label="电话" prop="phoneNumber" v-if="suggestButton.type == 8">
+                    <el-input v-model="suggestButton.phoneNumber" placeholder="请输入电话"></el-input>
+                </el-form-item>
+                <el-form-item label="文本" prop="text" v-if="suggestButton.type == 8">
+                    <el-input v-model="suggestButton.text" placeholder="请输入文本"></el-input>
+                </el-form-item>
+
+                <!-- 终端录制音视频并发送给特定对象 -->
+                <el-form-item label="电话" prop="phoneNumber" v-if="suggestButton.type == 9">
+                    <el-input v-model="suggestButton.phoneNumber" placeholder="请输入电话"></el-input>
+                </el-form-item>
+                <el-form-item label="电话类型" prop="phoneType" v-if="suggestButton.type == 9">
+                    <el-input v-model="suggestButton.phoneType" placeholder="请输入电话类型"></el-input>
+                </el-form-item>
+
+                <!-- 终端录制音视频并发送给特定对象 -->
+                <!-- <el-form-item label="共享设备" prop="enableDisplayedNotifications" v-if="suggestButton.type == 10">
+                    <el-input v-model="suggestButton.enableDisplayedNotifications" placeholder="请输入共享设备"></el-input>
+                </el-form-item> -->
+
+                <!-- <el-form-item v-if="suggestButton.type!=4" :label="suggestButton.type==2?'URL地址':suggestButton.type==3?'联系方式':suggestButton.type==1?'关键词':''"
+                    class="is-required">
+                    <el-input v-model="suggestButton.text" :maxlength="suggestButton.type == 1 ? '20' : ''"
+                        :placeholder="suggestButton.type==2?'请输入URL地址':suggestButton.type==3?'请输入联系方式':'请输入关键词'"></el-input>
+                </el-form-item> -->
+
+            </el-form>
+            <!--<div @click="delButton(bIndex,suggestButton)" class="del"><i class="el-icon-error"></i></div>-->
+
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="dialogVisibleSuggest=false" size="small">取消</el-button>
+                <el-button type="primary" @click="saveSuggest('form')" size="small">保存</el-button>
+            </span>
+
+
+        </el-dialog>
+        <!--建议回复end-->
+    </section>
+</template>
+
+<script>
+    import {
+        getResourceList,
+        getOneTemplate,
+        saveTemplate,
+        delResource,
+        getResourceCatalogList,
+        saveResourceCatalog,
+        delResourceCatalog,
+        getGroupListAdditionCount,
+        getPasswayList
+    } from '../../api/api'
+    import UploadFileBase from '../../components/UploadFileBase'
+    import resourceList from './ResourceManage'
+    import Aplayer from 'vue-aplayer'
+    import MmsTemplateManage from '../mms/MmsTemplateManage.vue'
+    export default {
+        name: "TemplateDetail",
+        components: {
+            UploadFileBase,
+            resourceList,
+            Aplayer,
+            MmsTemplateManage
+        },
+        data() {
+            return {
+                rules: {
+                    displayText: [{
+                        required: true,
+                        message: '请输入按钮名称',
+                        trigger: 'blur'
+                    }],
+                    data: [{
+                        required: true,
+                        message: '请输入返回数据',
+                        trigger: 'blur'
+                    }],
+                    url: [{
+                        required: true,
+                        message: '请输入URL地址',
+                        trigger: 'blur'
+                    }],
+                    phoneNumber: [{
+                        required: true,
+                        message: '请输入联系方式',
+                        trigger: 'blur'
+                    }],
+                    latitude: [{
+                        required: true,
+                        message: '请输入纬度',
+                        trigger: 'blur'
+                    }],
+                    longitude: [{
+                        required: true,
+                        message: '请输入进度',
+                        trigger: 'blur'
+                    }],
+                    query: [{
+                        required: true,
+                        message: '请输入查询',
+                        trigger: 'blur'
+                    }],
+                    label: [{
+                        required: true,
+                        message: '请输入标签',
+                        trigger: 'blur'
+                    }],
+                    // requestLocationPush: [{
+                    //     required: true,
+                    //     message: '请输入请求位置推送',
+                    //     trigger: 'blur'
+                    // }],
+                    dateTime: [{
+                        required: true,
+                        message: '请选择时间',
+                        trigger: 'change'
+                    }],
+                    title: [{
+                        required: true,
+                        message: '请输入主题',
+                        trigger: 'blur'
+                    }],
+                    description: [{
+                        required: true,
+                        message: '请输入描述',
+                        trigger: 'blur'
+                    }],
+                    text: [{
+                        required: true,
+                        message: '请输入文本信息',
+                        trigger: 'blur'
+                    }],
+                    phoneType: [{
+                        required: true,
+                        message: '请输入电话类型',
+                        trigger: 'blur'
+                    }],
+                    // enableDisplayedNotifications: [{
+                    //     required: true,
+                    //     message: '请输入共享设备',
+                    //     trigger: 'blur'
+                    // }]
+                },
+                resourceType: '', //传给素材组件的类型
+                form: {
+                    groupType: 'TEMPLATE_TEXT',
+                    text: '',
+                    name: '',
+                    groupId: 0,
+                    chatbotId: 0
+                },
+                chatbotList: [],
+                // typeName: ['','文本','图片','音频','视频','卡片'],
+                cardList: [{
+                    buttonList: [],
+                    suspensionButtonList: []
+                }],
+                maxCardSize: 12,
+                maxButtonSize: 5,
+                dialogVisible: false,
+                images: [],
+                files: [],
+                types: [],
+                selectId: [], // 选择资源的id
+                musicObj: {},
+                musicObjArr: [], // 卡片的音频
+                cardIndex: 0,
+                suggestList: [],
+                dialogVisibleSuggest: false,
+                suggestButton: {
+                    type: 1
+                },
+                suggestFlag: 1,
+                dragIndex1: 0,
+                dragIndex2: 0,
+                dragIndex2: 0,
+                dialogTitle: '建议回复',
+                activeCard: {},
+                groupList: [],
+
+                rollback: false, //回退策略
+                fallbackSupportedType: 1,
+                mmsDialogFlag: false,
+                mmsContent: []
+            }
+        },
+        methods: {
+            //删除选择的彩信内容
+            mmsContentClose(tag) {
+                this.mmsContent.splice(this.mmsContent.indexOf(tag), 1);
+            },
+            //回落数据返回以及取消
+            mmsContentInfo(dialogType, mmsDialogFlag, val) {
+                if (dialogType == 'cancel') {
+                    this.mmsDialogFlag = mmsDialogFlag
+                } else {
+                    console.log(val)
+                    this.mmsDialogFlag = mmsDialogFlag
+                    this.mmsContent.push(val)
+                }
+            },
+            mediaSelectResourcs() {
+                if (this.form.chatbotId < 1) {
+                    this.$message.warning('请先选择chatbotId,在进行此操作!')
+                    return;
+                }
+                this.dialogVisible = true
+            },
+            getPasswayList() {
+                getPasswayList({
+                    curPage: 1,
+                    size: 1000,
+                    chatbotName: '',
+                    userId: ''
+                }).then(res => {
+                    this.chatbotList = res.data.records
+                    this.form.chatbotId = this.chatbotList[0].id
+                })
+            },
+            getGroupListAdditionCount() {
+                getGroupListAdditionCount({
+                    groupType: this.$route.query.groupType
+                }).then(res => {
+                    this.groupList = res.data
+                    let groupId = this.$route.query.selectGroupId
+                    if (groupId != undefined) {
+                        this.form.groupId = Number(groupId)
+                    }
+                    // for (var i = 0; i < this.groupList.length; i++) {
+                    //     if (this.groupList[i].name == '未分组') {
+                    //         this.form.groupId = this.groupList[i].id
+                    //     }
+                    // }
+                })
+            },
+            change() {
+                this.$forceUpdate()
+            },
+            selectRow(row) {
+                this.dialogVisible = false
+                this.selectId[0] = row.id
+                console.log('row:', row)
+                console.log('row.type:', row.type)
+                console.log('this.form.groupType:', this.form.groupType)
+                // ['0','文本','图片','音频','视频','卡片']
+                if (row.type == 'RESOURCE_IMAGE') {
+                    if (this.form.groupType == 'TEMPLATE_IMAGE') {
+                        // 图片
+                        this.images[0] = row.file
+                        this.files[0] = row.file
+                    } else {
+                        // 卡片
+                        this.images[this.cardIndex] = row.file
+                        this.files[this.cardIndex] = row.file
+                        this.types[this.cardIndex] = row.type
+                        this.selectId[this.cardIndex] = row.id
+                    }
+
+                } else if (row.type == 'RESOURCE_AUDIO') {
+                    if (this.form.groupType == 'TEMPLATE_AUDIO') {
+                        this.images[0] = row.image
+                        this.files[0] = row.file
+                    } else {
+                        this.images[this.cardIndex] = row.image
+                        this.files[this.cardIndex] = row.file
+                        this.types[this.cardIndex] = row.type
+                        this.selectId[this.cardIndex] = row.id
+
+                        this.musicObjArr[this.cardIndex] = {
+                            title: row.name,
+                            src: this.$options.filters.imgPath(row.file, 'audio'),
+                            pic: this.$options.filters.imgPath(row.image, 'audio'),
+                            artist: ' '
+                        }
+                    }
+
+                    this.musicObj = {
+                        title: row.name,
+                        src: this.$options.filters.imgPath(row.file, 'audio'),
+                        pic: this.$options.filters.imgPath(row.image, 'audio'),
+                        artist: ' '
+                    }
+                } else if (row.type == 'RESOURCE_VIDEO') {
+                    if (this.form.groupType == 'TEMPLATE_VIDEO') {
+                        this.images[0] = row.image
+                        this.files[0] = row.file
+                    } else {
+                        this.images[this.cardIndex] = row.image
+                        this.files[this.cardIndex] = row.file
+                        this.types[this.cardIndex] = row.type
+                        this.selectId[this.cardIndex] = row.id
+                    }
+
+                } else if (row.type == 'RESOURCE_DOCMENT') { // 文件
+                    if (this.form.groupType == 'TEMPLATE_DOCMENT') {
+                        this.files[0] = row.file
+                    } else {
+                        this.files[this.cardIndex] = row.file
+                        this.types[this.cardIndex] = row.type
+                        this.selectId[this.cardIndex] = row.id
+                    }
+                }
+            },
+            delFiles(i) {
+                if (this.form.groupType == 'TEMPLATE_CARD') {
+                    this.$set(this.images, i, '')
+                    this.$set(this.files, i, '')
+                } else {
+                    this.images = []
+                    this.files = []
+                }
+            },
+            radioChange(val) {
+                this.images = []
+                this.files = []
+                this.musicObj = {}
+                this.musicObjArr = []
+                this.cardList = [{
+                    buttonList: [],
+                    suspensionButtonList: []
+                }]
+                let type = this.$route.query.groupType
+                if (type) {
+                    let path = this.$route.path
+                    this.$router.push(path + '?type=' + val)
+                }
+            },
+            addCard() {
+                this.cardList.push({
+                    buttonList: []
+
+                })
+            },
+            // sort 1上移1位 -1下移一位
+            sortCard(index, sort) {
+                let arr = [this.cardList, this.images, this.files, this.musicObjArr, this.types]
+                if (this.cardList.length > 1) {
+                    let cardList
+                    for (let i = 0; i < arr.length; i++) {
+                        cardList = arr[i]
+                        if (sort == 1) {
+                            this.exchange(cardList[index], cardList[index - 1], index, index - 1, cardList)
+                        } else if (sort == -1) {
+                            this.exchange(cardList[index], cardList[index + 1], index, index + 1, cardList)
+                        }
+                    }
+                }
+            },
+            // param 交换的值 index 交换值的索引
+            exchange(param1, param2, index1, index2, obj) {
+                this.$set(obj, index1, param2)
+                this.$set(obj, index2, param1)
+            },
+            delCard(index) {
+                this.cardList.splice(index, 1)
+            },
+            addButton(card) {
+                if (!card.buttonList) {
+                    card.buttonList = []
+                }
+                card.buttonList.push({
+                    type: 1
+                })
+            },
+            delButton(index, buttonList) {
+                buttonList.splice(index, 1)
+            },
+            saveSuggest(formName) {
+                console.log('this.suggestButton:', this.suggestButton)
+                console.log('this.cardList:', this.cardList)
+
+                let suggestList = this.suggestList
+
+                if (this.dialogTitle == '按钮') {
+                    suggestList = this.activeCard.buttonList
+                }
+                if (this.dialogTitle == '悬浮按钮') {
+                    suggestList = this.activeCard.suspensionButtonList
+                }
+
+                // if (!this.suggestButton.name) {
+                //     this.$message.warning('请先完善信息')
+                //     return
+                // }
+                // if (!this.suggestButton.data) {
+                //     this.$message.warning('请先完善信息')
+                //     return
+                // }
+                // if (this.suggestButton.type != 4 && !this.suggestButton.text) {
+                //     this.$message.warning('请先完善信息')
+                //     return
+                // }
+
+                this.$refs[formName].validate((valid) => {
+                    if (valid) {
+                        console.log(this.suggestButton, '----时间')
+                        if (this.suggestButton.type == 7) {
+                            this.suggestButton.startTime = this.suggestButton.dateTime[0]
+                            this.suggestButton.endTime = this.suggestButton.dateTime[1]
+                        }
+
+                        if (this.suggestFlag == -1) {
+                            suggestList.push(this.suggestButton)
+                        } else {
+                            suggestList[this.suggestFlag] = this.suggestButton
+                        }
+
+                        // if()
+                        this.dialogVisibleSuggest = false
+                    }
+                });
+
+
+            },
+            editSuggestButton(index, suggest, type, card) {
+                if (type == 1) {
+                    this.dialogTitle = '建议回复'
+                } else if (type == 2) {
+                    this.dialogTitle = '按钮'
+                } else {
+                    this.dialogTitle = '悬浮按钮'
+                }
+                // type == 1 ? this.dialogTitle = '建议回复' : this.dialogTitle = '按钮'
+                if ((type == 2 || type == 3) && card) {
+                    this.activeCard = card
+                }
+                this.suggestButton = Object.assign({}, suggest)
+                this.dialogVisibleSuggest = true
+                this.suggestFlag = index
+            },
+            dragStart1(index) {
+                this.dragIndex1 = index
+            },
+            dragOver1(index) {
+                let param = this.suggestList
+                if (this.dragIndex1 != index) {
+                    this.exchange(param[index], param[this.dragIndex1], index, this.dragIndex1, param)
+                    this.dragIndex1 = index
+                }
+            },
+            dragStart2(index) {
+                this.dragIndex2 = index
+            },
+            dragOver2(index, list) {
+                let param = list
+                if (this.dragIndex2 != index) {
+                    this.exchange(param[index], param[this.dragIndex2], index, this.dragIndex2, param)
+                    this.dragIndex2 = index
+                }
+            },
+            dragStart3(index) {
+                this.dragIndex3 = index
+            },
+            dragOver3(index, list) {
+                let param = list
+                if (this.dragIndex3 != index) {
+                    this.exchange(param[index], param[this.dragIndex3], index, this.dragIndex3, param)
+                    this.dragIndex3 = index
+                }
+            },
+            exchange(param1, param2, index1, index2, obj) {
+                obj.splice(index1, 0, obj.splice(index2, 1)[0])
+            },
+            onSubmit() {
+                let media = this.getMedia()
+                if (media) {
+                    if (media.type == 5) {
+                        this.selectId = this.selectId.slice(0, this.cardList.length)
+                    }
+                    media.resourceId = this.selectId.join()
+
+                    if (this.rollback) {
+                        media.fallbackSupported = 1
+                        media.fallbackSupportedType = this.fallbackSupportedType
+                        media.fallbackSupportedContent = this.mmsContent[0].mmsId
+                    } else {
+                        media.fallbackSupported = 0
+                    }
+                    saveTemplate(media).then(rsp => {
+                        if (rsp.success) {
+                            this.$message.success('添加成功')
+                            this.$store.dispatch('tagsView/delView', this.$route).then(() => {
+                                this.$router.push('/mediaManage')
+                            })
+                        } else {
+                            this.$message.error(rsp.message)
+                        }
+                    })
+                } else {
+                    this.$message.warning('请先完善信息')
+                }
+
+            },
+            getMedia() {
+                let media = this.form
+                console.log('media:', media)
+                let arr = [],
+                    obj = {}
+                let flag = false
+                if (!media.name) flag = true
+                switch (media.groupType) {
+                    case 'TEMPLATE_TEXT': //text
+                        obj.text = this.form.text
+                        if (!obj.text) flag = true
+                        arr.push(obj)
+                        break;
+                    case 'TEMPLATE_IMAGE': //pic
+                        // obj.image = this.$refs.imageUpload.getFileString()
+                        obj.image = this.images[0]
+                        obj.file = this.files[0]
+                        if (!obj.image) flag = true
+                        arr.push(obj)
+                        break;
+                    case 'TEMPLATE_AUDIO': //audio
+                        // obj.image = this.$refs.audioUploadImg.getFileString()
+                        // obj.file = this.$refs.audioUpload.getFileString()
+                        obj.image = this.images[0]
+                        obj.file = this.files[0]
+                        if (!obj.file) flag = true
+                        arr.push(obj)
+                        break;
+                    case 'TEMPLATE_VIDEO': //video
+                        // obj.image = this.$refs.videoUploadImg.getFileString()
+                        // obj.file = this.$refs.videoUpload.getFileString()
+                        obj.image = this.images[0]
+                        obj.file = this.files[0]
+                        if (!obj.file) flag = true
+                        arr.push(obj)
+                        break;
+                    case 'TEMPLATE_CARD': //card
+                        this.cardList.forEach((card, i) => {
+                            // obj.image = this.$refs.cardUpload[i].getFileString()
+                            // obj.file = this.files[i]
+                            console.log('123123123123-----:', this.types[i])
+                            let type = this.types[i]
+                            obj.type = type
+                            if (type == 'RESOURCE_IMAGE') {
+                                obj.image = this.images[i]
+                                obj.file = this.files[i]
+                            } else if (type == 'RESOURCE_AUDIO' || type == 'RESOURCE_VIDEO') {
+                                obj.image = this.images[i]
+                                obj.file = this.files[i]
+                            }
+                            obj.name = card.name
+                            obj.text = card.text
+                            obj.buttons = card.buttonList
+                            arr.push(obj)
+                            if (i == this.cardList.length - 1) {
+                                if (!obj.image) flag = true
+                                if (obj.buttons.length > 0) {
+                                    let lastBtn = obj.buttons[obj.buttons.length - 1]
+                                    console.log(lastBtn, "-----按钮")
+                                    if (!lastBtn.displayText || !lastBtn.data) flag = true
+                                }
+                            }
+                            obj = {}
+                        })
+                        break;
+                    case 'TEMPLATE_DOCMENT': //file
+                        obj.file = this.files[0]
+                        if (!obj.file) flag = true
+                        arr.push(obj)
+                        break;
+                }
+                media.content = JSON.stringify(arr)
+                media.suggestedResponse = JSON.stringify(this.suggestList)
+                if (flag) {
+                    return false
+                }
+                return media
+            },
+            setMedia(media) {
+                console.log('数据转换:', media)
+                media.type = media.type + ''
+                media.id = media.id + ''
+                let content = JSON.parse(media.content)
+                if (media.fallbackSupported == 1) {
+                    this.rollback = true
+                    this.fallbackSupportedType = media.fallbackSupportedType
+                    this.mmsContent.push({mmsId:media.fallbackSupportedContent})
+
+                } else {
+                    this.rollback = false
+                }
+                this.form = media
+                this.form.groupType = media.type
+                this.form.groupId = parseInt(media.groupId)
+                this.suggestList = JSON.parse(media.suggestedResponse || '[]')
+                switch (media.type) {
+                    case 'TEMPLATE_TEXT': //text
+                        this.$set(this.form, 'text', content[0].text)
+                        break;
+                    case 'TEMPLATE_IMAGE': //pic
+                        // this.$refs.imageUpload.setFileString(content[0].image,'image')
+                        this.images[0] = content[0].image
+                        this.files[0] = content[0].file
+                        break;
+                    case 'TEMPLATE_AUDIO': //audio
+                        // this.$refs.audioUploadImg.setFileString(content[0].image,'audio')
+                        // this.$refs.audioUpload.setFileString(content[0].file,'audio')
+                        this.images[0] = content[0].image
+                        this.files[0] = content[0].file
+                        this.musicObj = {
+                            title: media.name,
+                            src: this.$options.filters.imgPath(content[0].file, 'audio'),
+                            pic: this.$options.filters.imgPath(content[0].image, 'audio'),
+                            artist: ' '
+                        }
+                        break;
+                    case 'TEMPLATE_VIDEO': //video
+                        // this.$refs.videoUploadImg.setFileString(content[0].image,'video')
+                        // this.$refs.videoUpload.setFileString(content[0].file,'video')
+                        this.images[0] = content[0].image
+                        this.files[0] = content[0].file
+                        break;
+                    case 'TEMPLATE_CARD': //card
+                        this.cardList = []
+                        content.forEach((card, i) => {
+                            let obj = {}
+                            this.$nextTick(_ => {
+                                // this.$refs.cardUpload[i].setFileString(card.image,'card')
+                                this.$set(this.images, i, card.image)
+                                this.$set(this.files, i, card.file)
+                                this.$set(this.types, i, card.type)
+
+                                this.musicObjArr[i] = {
+                                    title: card.name,
+                                    src: this.$options.filters.imgPath(card.file, 'audio'),
+                                    pic: this.$options.filters.imgPath(card.image, 'audio'),
+                                    artist: ' '
+                                }
+
+                            })
+                            obj.name = card.name
+                            obj.text = card.text
+                            obj.buttonList = card.buttons
+                            this.cardList.push(obj)
+                        })
+                        break;
+                    case 'TEMPLATE_DOCMENT': //file
+                        this.files[0] = content[0].file
+                        break;
+                }
+
+            },
+            initData() {
+                let id = this.$route.query.mid
+                if (id) {
+                    getOneTemplate({
+                        id: Number(id)
+                    }).then(rsp => {
+                        if (rsp.success) {
+                            this.setMedia(rsp.data)
+                        }
+                    })
+                }
+            }
+        },
+        activated() {
+            this.images = []
+            this.files = []
+            this.types = []
+            this.selectId = []
+            this.musicObj = []
+            this.musicObjArr = []
+            this.cardIndex = 0
+            this.suggestList = []
+            this.cardList = [{
+                buttonList: [],
+                suspensionButtonList: []
+            }]
+
+            // let map = this.$store.state.tagsView.cacheUrlMap
+            // let obj = {},
+            //     fullPath = this.$route.path
+            // let cache = map[fullPath]
+            // if (!cache) {
+                // 不存在缓存，重置变量
+                this.form = {
+                    groupType: 'TEMPLATE_TEXT',
+                    text: '',
+                    name: '',
+                    groupId: 0,
+                    chatbotId: 0
+                }
+                this.cardList = [{
+                    buttonList: [],
+                    suspensionButtonList: []
+                }]
+                this.suggestButton = {
+                    type: 1
+                }
+                this.mmsDialogFlag = false
+                this.rollback = false //回退策略
+                this.fallbackSupportedType = 1
+                this.mmsContent = []
+                this.suggestList = []
+                this.initData()
+                this.getGroupListAdditionCount()
+                this.getPasswayList()
+            // }
+
+            this.form.groupType = this.$route.query.groupType
+            // if (type) {
+            //     this.form.groupType = type+''
+            //     console.log('groupType =',this.form.groupType)
+            // }
+
+            if (!this.$route.query.mid) {
+                // alert(1)
+                this.initData()
+                this.getGroupListAdditionCount()
+            }
+
+            // obj[fullPath] = fullPath
+            // this.$store.commit('tagsView/SET_CACHE_URL_MAP', obj)
+        },
+        // mounted() {
+        //     this.getGroupListAdditionCount()
+        // }
+    }
+</script>
+
+<style lang="less">
+    .template-detail {
+
+        .text {
+            font-size: 14px;
+          }
+
+          .item {
+            margin-bottom: 18px;
+          }
+
+          .clearfix:before,
+          .clearfix:after {
+            display: table;
+            content: "";
+          }
+          .clearfix:after {
+            clear: both
+          }
+
+          .box-card {
+            width: 100%;
+            margin-bottom: 20px;
+          }
+
+        .buttonGroupType {
+            width: 100%;
+
+            >div {
+                margin-bottom: 10px;
+            }
+        }
+
+        .videoWidth {
+            width: 40%;
+        }
+
+        .audioWidth {
+            width: 40%;
+        }
+
+        .template-any {
+            padding: 15px;
+            border: 1px dashed #e1e1e1;
+
+        }
+
+        .templateWidth {
+            .el-input {
+                width: 100%;
+            }
+            .el-select{
+                width: 100%;
+            }
+        }
+
+        .card {
+            display: inline-block;
+            width: 100%;
+            .el-carousel__item h3 {
+                color: #475669;
+                font-size: 14px;
+                opacity: 0.75;
+                line-height: 200px;
+                margin: 0;
+              }
+              div.el-carousel__container{
+                  width: 100%;
+                  height: 700px;
+              }
+
+              // .el-carousel__item:nth-child(2n) {
+              //   background-color: #99a9bf;
+              // }
+
+              // .el-carousel__item:nth-child(2n+1) {
+              //   background-color: #d3dce6;
+              // }
+
+            .card-item {
+                position: relative;
+                display: inline-block;
+                // margin-left: 70px;
+                // padding-top: 30px;
+                // padding-right: 60px;
+                // border: 1px dashed #66b1ff;
+                margin-top: 20px;
+                border-radius: 6px;
+
+                &+.card-item {
+                    // margin-top: 20px;
+                }
+
+                .card-button {
+                    .button-item {
+                        position: relative;
+                        padding: 20px 20px 5px 20px;
+                        border: 1px dashed #66b1ff;
+                        border-radius: 6px;
+                        margin-bottom: 20px;
+                    }
+
+                    label {
+                        font-weight: normal;
+                    }
+
+                    label.el-form-item__label {
+                        width: 70px !important;
+                    }
+
+                    .el-form-item__content {
+                        margin-left: 70px !important;
+                    }
+                }
+
+                .del {
+                    position: absolute;
+                    top: -25px;
+                    right: -20px;
+                    display: inline-block;
+                    font-size: 24px;
+                    color: #F56C6C;
+                    cursor: pointer;
+                }
+
+                &:first-child>.del {
+                    display: none;
+                }
+            }
+
+            .add-card {
+                margin-top: 10px;
+                padding-left: -70px;
+                padding: 10px;
+                text-align: center;
+            }
+
+            .divider {
+                // margin: 20px 0 30px 70px;
+                text-align: center;
+
+                i {
+                    font-size: 20px;
+                    cursor: pointer;
+                }
+
+                .el-divider__text {
+                    /*color: #ddd;*/
+                }
+            }
+
+        }
+
+        .file-wrap {
+            position: relative;
+            height: 180px;
+
+            // padding: 10px 10px 0 0;
+            &.image {
+                // width: 158px;
+            }
+
+            &.audio {
+                width: 100%;
+
+                .aplayer-pic {
+                    width: 90px;
+                    height: 90px;
+                }
+
+                .aplayer {
+                    margin: 0 !important;
+                }
+            }
+
+            &.video {
+                width: 100%;
+            }
+
+            &.card {
+                // width: 158px;
+            }
+
+            &.file {
+                display: inline-block;
+                text-align: center;
+            }
+
+            .del-res {
+                position: absolute;
+                top: 0;
+                right: 0;
+                font-size: 18px;
+                cursor: pointer;
+            }
+        }
+
+        .suggest-container {
+            display: flex;
+
+            // >div{
+            //     display: inline-block;
+            // }
+            .suggest-item {
+                cursor: pointer;
+                position: relative;
+                text-align: center;
+                margin-right: 6px;
+                padding: 0px 20px;
+                line-height: 30px;
+                // border: 1px solid #e1e1e1;
+                border-radius: 20px;
+                overflow: hidden;
+
+                &:hover {
+                    color: #409eff;
+                    // border: 1px solid #409eff;
+                }
+
+                .btn-hover {
+                    position: absolute;
+                    left: 0;
+                    right: 0;
+                    top: 0;
+                    bottom: 0;
+                    display: flex;
+                    justify-content: space-between;
+                    opacity: 0;
+                    transition: all ease .2s;
+
+                    span {
+                        width: 50%;
+                        text-align: center;
+                        cursor: pointer;
+
+                        &:first-child {
+                            background-color: rgba(0, 0, 0, .6);
+                        }
+
+                        &:last-child {
+                            background-color: rgba(0, 0, 0, .5);
+                        }
+                    }
+
+                    i {
+                        font-size: 16px;
+                        color: white;
+                        line-height: 22px;
+                    }
+                }
+
+                &:hover .btn-hover {
+                    opacity: 1;
+                }
+            }
+
+            .suggest-add {
+                padding: 0 20px;
+                line-height: 30px;
+                border: 1px solid #e1e1e1;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: all ease .1s;
+
+                &:hover {
+                    color: #409eff;
+                    border: 1px solid #409eff;
+                }
+            }
+        }
+    }
+
+    .preview-resource {
+        .preview {
+            width: 315px;
+            // margin: auto;
+
+            .mobile-header {
+                height: 60px;
+                border-radius: 15px 15px 0 0;
+                background-color: #304156;
+                text-align: center;
+
+                &::before {
+                    display: inline-block;
+                    width: 6px;
+                    height: 6px;
+                    margin: 27px 6px;
+                    background-color: white;
+                    border-radius: 50%;
+                    content: '';
+                }
+
+                &::after {
+                    display: inline-block;
+                    width: 30px;
+                    height: 6px;
+                    margin: 27px 6px;
+                    background-color: white;
+                    border-radius: 20px;
+                    content: '';
+                }
+            }
+
+            .mobile-main {
+                height: 520px;
+                // padding: 10px 15px;
+                border: 1px solid #e1e1e1;
+                position: relative;
+                border-width: 0 1px 0 1px;
+                overflow-y: auto;
+                background-color: #fff;
+
+                .box {
+                    .uploadFile {
+                        // background-color: #E9F3F7;
+                        vertical-align: middle;
+                        text-align: center;
+                        position: relative;
+                        overflow: hidden;
+
+                        .uploadAdd {
+                            font-size: 30px;
+                            color: #ccc;
+                            margin-top: 30px;
+                            cursor: pointer;
+                            border: 1px dashed #ccc;
+                            text-align: center;
+                            width: 30%;
+                            padding: 10px;
+                            border-radius: 10px;
+                        }
+
+                        .addSuCai {
+                            color: #A0A6AA;
+                            margin: 20px 0;
+                            font-size: 12px;
+                        }
+                    }
+
+                    .cardTitle {
+                        margin: 10px;
+
+                        .el-input__inner {
+                            padding-right: 50px !important;
+                        }
+                    }
+
+                    .cardContent {
+                        margin: 10px;
+                    }
+
+                    .suspensionButton {
+                        margin: 10px;
+
+                        .suggest-container {
+
+                            // display: flex;
+                            >div {
+                                display: inline-block;
+                            }
+                        }
+
+                        .suggest-item {
+                            position: relative;
+                            text-align: center;
+                            margin-right: 6px;
+                            padding: 0px 20px;
+                            height: 25px;
+                            line-height: 25px;
+                            border: 1px solid #e1e1e1;
+                            border-radius: 20px;
+                            overflow: hidden;
+
+                            .btn-hover {
+                                position: absolute;
+                                left: 0;
+                                right: 0;
+                                top: 0;
+                                bottom: 0;
+                                display: flex;
+                                justify-content: space-between;
+                                opacity: 0;
+                                transition: all ease .2s;
+
+                                span {
+                                    width: 50%;
+                                    text-align: center;
+                                    cursor: pointer;
+
+                                    &:first-child {
+                                        background-color: rgba(0, 0, 0, .6);
+                                    }
+
+                                    &:last-child {
+                                        background-color: rgba(0, 0, 0, .5);
+                                    }
+                                }
+
+                                i {
+                                    font-size: 16px;
+                                    color: white;
+                                    line-height: 22px;
+                                }
+                            }
+
+                            &:hover .btn-hover {
+                                opacity: 1;
+                            }
+                        }
+
+                        .suggest-add {
+                            padding: 0 20px;
+                            height: 25px;
+                            line-height: 25px;
+                            border: 1px solid #e1e1e1;
+                            border-radius: 15px;
+                            cursor: pointer;
+                            font-size: 12px;
+                            transition: all ease .1s;
+
+                            &:hover {
+                                color: #409eff;
+                                border: 1px solid #409eff;
+                            }
+                        }
+                    }
+
+                    .cardButton {
+                        margin: 10px;
+
+                        .suggest-container {
+                            display: block;
+
+                            .suggest-item {
+                                position: relative;
+                                text-align: center;
+                                margin-right: 6px;
+                                padding: 0px 20px;
+                                line-height: 30px;
+                                // border: 1px solid #e1e1e1;
+                                border-radius: 20px;
+                                overflow: hidden;
+
+                                .btn-hover {
+                                    position: absolute;
+                                    left: 0;
+                                    right: 0;
+                                    top: 0;
+                                    bottom: 0;
+                                    display: flex;
+                                    justify-content: space-between;
+                                    opacity: 0;
+                                    transition: all ease .2s;
+
+                                    span {
+                                        width: 50%;
+                                        text-align: center;
+                                        cursor: pointer;
+
+                                        &:first-child {
+                                            background-color: rgba(0, 0, 0, .6);
+                                        }
+
+                                        &:last-child {
+                                            background-color: rgba(0, 0, 0, .5);
+                                        }
+                                    }
+
+                                    i {
+                                        font-size: 16px;
+                                        color: white;
+                                        line-height: 22px;
+                                    }
+                                }
+
+                                &:hover .btn-hover {
+                                    opacity: 1;
+                                }
+                            }
+
+                            .suggest-add {
+                                padding: 0 20px;
+                                line-height: 30px;
+                                border: 1px solid #e1e1e1;
+                                border-radius: 10px;
+                                cursor: pointer;
+                                transition: all ease .1s;
+
+                                &:hover {
+                                    color: #409eff;
+                                    border: 1px solid #409eff;
+                                }
+                            }
+                        }
+
+                        .cardFont {
+                            text-align: center;
+                            padding: 0 10px;
+                            line-height: 30px;
+                            // border: 1px solid #e1e1e1;
+                            border-radius: 10px;
+                            font-size: 12px;
+                            cursor: pointer;
+                            color: #409eff;
+                            transition: all ease .1s;
+
+                            &:hover {
+                                color: #409eff;
+                                // border: 1px solid #409eff;
+                            }
+                        }
+                    }
+                }
+
+                .title-m {
+                    display: flex;
+                    align-items: center;
+                    padding: 5px 0 12px 0;
+                    font-size: 14px;
+                    color: #66b1ff;
+
+                    img {
+                        height: 24px;
+                        margin-right: 6px;
+                    }
+
+                }
+
+                .item-desc {
+                    .desc {
+                        margin-top: -11px;
+                        padding: 10px 0;
+                        font-size: 14px;
+                        line-height: 20px;
+
+                        /*background-color: #f1f1f1;*/
+                        h3 {
+                            padding: 8px 10px;
+                            font-size: 15px;
+                            color: #303133;
+                            text-align: center;
+                        }
+
+                        p {
+                            margin: 10px 0;
+                            padding: 0 10px;
+                            max-height: 80px;
+                            overflow-y: auto;
+                        }
+
+                        .button {
+                            width: 80%;
+                            margin: 5px auto 8px auto;
+                            /*line-height: 34px;*/
+                            font-size: 14px;
+                            background-color: white;
+                            border-radius: 10px;
+                            text-align: center;
+                        }
+                    }
+                }
+
+                .text {
+                    .desc {
+                        margin-top: 0px;
+
+                        h3 {
+                            padding-top: 0;
+                        }
+                    }
+                }
+
+                .image,
+                .video {
+                    .desc {
+                        margin-top: 0px;
+                        padding-top: 0;
+
+                        h3 {
+                            padding-bottom: 2px;
+                        }
+                    }
+
+                }
+
+                .suggest {
+                    display: inline-block;
+                    padding: 0 10px;
+                    height: 20px;
+                    line-height: 20px;
+                    font-size: 12px;
+                    border-radius: 4px;
+                    margin-right: 10px;
+                    background-color: #f1f1f1;
+                }
+            }
+
+            .mobile-footer {
+                height: 60px;
+                border-radius: 0 0 15px 15px;
+                background-color: #304156;
+                text-align: center;
+
+                &::before {
+                    display: inline-block;
+                    width: 36px;
+                    height: 36px;
+                    margin-top: 12px;
+                    border: 2px solid white;
+                    border-radius: 50%;
+                    content: '';
+                }
+            }
+        }
+
+        .scrollbar::-webkit-scrollbar {
+            width: 1px;
+        }
+
+        .desc .scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+    }
+</style>

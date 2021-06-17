@@ -1,0 +1,41 @@
+{
+    "curENV": "dev",
+    "build_output_dir": "admin",
+    "ossRegion": "oss-cn-beijing",
+    "ossBucket": "yn-rcs",
+    "dev": {
+        "adminUrl" :"http://192.168.0.113:8411/be/admin/",
+        "adminServer": "/be/admin/",
+        "adminClient": "http://192.168.0.113:8410/",
+        "mobileClient":"http://127.0.0.1:8400/",
+        "imageRootPath": "http://192.168.0.113:8411/be/admin/upload/",
+        "ossPath": "https://rcst.youknow.vip/be/admin/common/getOssPolicy",
+        "clientPort":"8410",
+        "proxyTable": {
+            "/be/admin": {
+                "target": "http://192.168.0.113:8411/be/admin",
+                "changeOrigin": true,
+                "pathRewrite": {"^/be/admin": ""}
+            }
+        },
+        "currentEnvironment":"dev"
+    },
+    "build_test": {
+        "adminUrl" :"https://rcs.youknow.vip/be/admin/",
+        "adminServer": "https://rcst.youknow.vip/be/admin/",
+        "adminClient": "https://rcst.youknow.vip/",
+        "mobileClient": "https://rcst.youknow.vip/fe/mobile/",
+        "imageRootPath": "https://yn-rcs.oss-vip-beijing.aliyuncs.com/test/",
+        "ossPath": "https://rcst.youknow.vip/be/admin/common/getOssPolicy",
+        "currentEnvironment":"test"
+    },
+    "build_release": {
+        "adminUrl" :"https://rcs.youknow.vip/be/admin/",
+        "adminServer": "https://rcs.youknow.vip/be/admin/",
+        "adminClient": "https://rcs.youknow.vip/",
+        "mobileClient": "https://m.youknow.vip/fe/mobile/",
+        "imageRootPath": "https://rcs.youknow.vip/_image/",
+        "ossPath": "https://rcs.youknow.vip/be/admin/common/getOssPolicy",
+        "currentEnvironment":"prod"
+    }
+}

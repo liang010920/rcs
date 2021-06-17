@@ -1,0 +1,262 @@
+<template>
+    <section class="system-config wrap-container">
+        <el-form :inline="true" :model="params" size="small">
+
+            <el-form-item>
+                <el-input v-model="params.description" placeholder="搜索名称"></el-input>
+            </el-form-item>
+
+            <el-form-item>
+                <el-button type="primary" @click="search" icon="el-icon-search">查询</el-button>
+            </el-form-item>
+
+        </el-form>
+
+        <section>
+            <el-table :data="configList" fit v-loading="tableLoading" size="small" border
+                      :header-cell-style="{'background-color': '#fafafa'}">
+                <el-table-column prop="description" label="名称" align="center"></el-table-column>
+                <!--<el-table-column prop="cfgKey" label="Key" align="center"></el-table-column>-->
+                <el-table-column prop="cfgValue" label="详情" align="center">
+                    <template slot-scope="scope">
+                        {{scope.row.cfgValue | formatDesc}}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" align="center">
+                    <template slot-scope="scope">
+                        {{scope.row.status==1?'启用':'停用'}}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="createTime" label="创建时间" align="center"></el-table-column>
+
+                <!-- 操作区 -->
+                <el-table-column label="操作" align="center">
+                    <template slot-scope="scope">
+                        <el-button  type="text" size="small" @click="control(scope.row)">编辑</el-button>
+                        <el-button  type="text" size="small" @click="setStatus(scope.row,'1')" v-if="scope.row.status==0">启用</el-button>
+                        <el-button  type="text" size="small" @click="setStatus(scope.row,'0')" v-if="scope.row.status==1">停用</el-button>
+
+                        <!--<el-switch-->
+                            <!--v-model="scope.row.status"-->
+                            <!--active-value="1"-->
+                            <!--inactive-value="0"-->
+                            <!--&gt;-->
+                        <!--</el-switch>-->
+                    </template>
+                </el-table-column>
+
+            </el-table>
+        </section>
+
+
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+                :current-page="page.current"
+                :page-sizes="[10, 15, 20, 30]"
+                :page-size="page.size"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="page.total">
+            </el-pagination>
+        </div>
+
+
+
+        <!-- 查看详情 start -->
+        <el-dialog
+            class="query-detail-dialog"
+            title="操作"
+            :visible.sync="controlFlag"
+            width="25%"
+            center
+            :close-on-click-modal="false">
+            <el-form label-width="100px" :inline="true" :model="config" size="small">
+
+                <el-form-item label=" " v-if="config.type=='radio'">
+                    <el-radio-group v-model="config.value">
+                        <el-radio v-for="(name,i) in config.names" :label="config.values[i]">{{name}}</el-radio>
+                        <!--<el-radio label="0">不启用</el-radio>-->
+                    </el-radio-group>
+                </el-form-item>
+
+                <template v-else-if="config.type=='input'">
+                    <el-form-item v-for="(name,i) in config.names" :label="name">
+                        <el-input v-model="inputs[i]" :placeholder="name">
+                            <template v-if="config.units&&config.units[i]" slot="append">{{config.units[i]}}</template>
+                        </el-input>
+                    </el-form-item>
+                </template>
+
+            </el-form>
+
+
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="controlFlag = false" size="small">取 消</el-button>
+                <el-button @click="onSubmit" size="small" type="primary">确 定</el-button>
+            </span>
+        </el-dialog>
+        <!-- 查看详情 end -->
+    </section>
+</template>
+
+<script>
+    import {getPageSysCfg,modSysCfg} from '../../api/api'
+    export default {
+        name: "SystemConfig",
+        components: {},
+        data() {
+            return {
+                params:{description:''},
+                tableLoading:false,
+                page:{curPage:1,size:10,total:0},// 传入后台参数
+                controlFlag:false,
+                radio:'0',
+                config:{},
+                inputs:[],
+                configList:[
+                    // {
+                    //     name:'',
+                    //     cfgValue:'{"type":"radio","show":0,"value":"0","names":["不启用","启用白名单","启用黑名单"],"values":["0","1","2"]}',
+                    //     description:'黑白名单',
+                    //
+                    // },
+                    // {
+                    //     name:'',
+                    //     cfgValue:'{"type":"input","value":"3,5","names":["失败次数","锁定时间"],"units":["次","分钟"]}',
+                    //     description:'登录锁定',
+                    //
+                    // }
+                ],
+                currId:0,
+            }
+        },
+        methods: {
+            handleCurrentChange:function (currentPage) { //改变当前页
+                this.page.curPage = currentPage
+                this.loadData()
+            },
+            handleSizeChange: function (size) { //改变页面size
+                this.page.size = size;
+                this.loadData()
+            },
+            search(){
+                this.loadData()
+            },
+            control(row){
+                this.controlFlag = true
+                this.config = JSON.parse(row.cfgValue)
+                this.currId = row.id
+                if (this.config.type=='input') {
+                    let value = this.config.value.split(',')
+                    this.inputs = Array.from({length:this.config.names.length},(val,i)=>value[i]||'')
+                }
+            },
+            setStatus(row,status){
+                modSysCfg({id:row.id,status:status}).then(rsp=>{
+                    if (rsp.success){
+                        this.$message.success('修改成功')
+                        this.loadData()
+                    }
+                })
+            },
+            onSubmit(){
+                if (this.config.type=='input'){
+                    let i=0
+                    for (;i<this.inputs.length;i++){
+                        if (!this.inputs[i]) break
+                    }
+                    if (i!=this.inputs.length) {
+                        this.$message.error('请输入'+this.config.names[i])
+                        return
+                    }
+
+                    this.config.value = this.inputs.join()
+                }
+                //ajax
+                let cfgValue = JSON.stringify(this.config)
+                modSysCfg({cfgValue:cfgValue,id:this.currId}).then(rsp=>{
+                    if (rsp.success){
+                        this.$message.success('修改成功')
+                        this.loadData()
+                        this.controlFlag = false
+                    } else{
+                        this.$message.error(rsp.message)
+                    }
+                })
+            },
+            loadData(){
+                let param = {curPage:this.page.curPage,size:this.page.size}
+                Object.assign(param,this.params)
+                this.tableLoading = true
+                getPageSysCfg(param).then(rsp=>{
+                    // console.log('syscfg resp:',rsp)
+                    this.tableLoading = false
+                    this.configList = rsp.data.records
+                    // this.configList.forEach(val=>{
+                    //     if (val.content){
+                    //         val.contentList = JSON.parse(val.content)
+                    //     } else{
+                    //         val.contentList = []
+                    //     }
+                    // })
+                    this.page.total = rsp.data.total
+                })
+            }
+        },
+        filters:{
+            formatDesc(value){
+                let json = JSON.parse(value)
+                if (json.type=='radio'){
+                    let v = json.value
+                    let i = json.values.indexOf(v)
+                    let desc = json.names[i]
+                    return desc
+                }else if (json.type=='input'){
+                    let v = json.value.split(',')
+                    let names = json.names
+                    let units = json.units
+                    if (!units) units = Array.from({length:names.length},val=>'')
+                    let desc = ''
+                    for (let i=0;i<v.length;i++){
+                        desc+=(names[i]+':'+v[i]+units[i]+';')
+                    }
+                    return desc
+                }
+            }
+        },
+        mounted() {
+            this.loadData()
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement.clientHeight -
+                50 - 84 - 40 - 52 - 40 - 47 + 'px'
+        }
+    }
+</script>
+
+<style scoped  lang="less">
+    .system-config{
+        .el-dialog__header{
+            text-align: center !important;
+        }
+        .el-table__body-wrapper{
+            overflow: auto;
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+        
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+        
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+    }
+</style>

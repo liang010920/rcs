@@ -1,0 +1,382 @@
+<template>
+    <section class="wrap-container" :class="scene == 1?'chatbot-manage':'spacing'">
+        <el-form :inline="true" :size="scene==1?'small':'mini'">
+
+            <el-form-item>
+                <el-input v-model="params.appName" placeholder="搜索应用名称"></el-input>
+            </el-form-item>
+
+            <el-form-item>
+                <el-button type="primary" @click="search" icon="el-icon-search">查询</el-button>
+            </el-form-item>
+            <el-form-item v-if="scene==1">
+                <el-button type="primary" @click="dialogVisible=true;chatbotModel={type:'0'};appTitle='新增接口';appType=false">新增接口</el-button>
+            </el-form-item>
+
+        </el-form>
+
+        <section>
+            <el-table :data="chatbotList" ref="singleTable" fit v-loading="tableLoading" :size="scene==1?'small':'mini'"
+                border @current-change="selectCurrentChange" :highlight-current-row="scene==2" :header-cell-style="{'background-color': '#fafafa'}">
+                <el-table-column prop="customerName" label="客户名称" align="center"></el-table-column>
+                <el-table-column prop="appName" label="应用名称" align="center"></el-table-column>
+                <el-table-column prop="appCode" label="应用编码" align="center"></el-table-column>
+                <el-table-column prop="passName" label="通道名称" align="center"></el-table-column>
+                <el-table-column prop="createTime" label="创建时间" align="center"></el-table-column>
+                <el-table-column prop="status" label="状态" align="center">
+                    <template slot-scope="scope">
+                        {{scope.row.runStatus==1?'已启用':'已停用'}}
+                    </template>
+                </el-table-column>
+
+                <!-- 操作区 -->
+                <el-table-column label="操作" align="center" v-if="scene==1">
+                    <template slot-scope="scope">
+                            <el-button type="text" size="small" @click="setStatus(scope.row,1)" v-if="scope.row.runStatus==0">启用</el-button>
+                            <el-button type="text" size="small" @click="setStatus(scope.row,0)" v-if="scope.row.runStatus==1">停用</el-button>
+                        <!--<el-button  type="text" size="small" @click="register(scope.row)" v-if="scope.row.regStatus==0">注册</el-button>-->
+                        <el-button type="text" size="small" @click="toDetail(scope.row)">编辑</el-button>
+                        <el-button type="text" size="small" @click="deleteData(scope.row)">删除</el-button>
+                    </template>
+                </el-table-column>
+
+            </el-table>
+        </section>
+
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="page.current"
+                :page-sizes="[10, 15, 20, 30]" :page-size="page.size" layout="total, sizes, prev, pager, next, jumper"
+                :total="page.total">
+            </el-pagination>
+        </div>
+
+        <!-- 查看详情 start -->
+        <el-dialog class="query-detail-dialog" :title="appTitle" :visible.sync="dialogVisible" width="35%" center
+            :close-on-click-modal="false">
+
+            <el-form label-width="150px" size="mini" :model="chatbotModel" :rules="rules" ref="chatbotForm">
+                <!-- <el-form-item label="chatbot类型">
+                    <el-radio-group v-model="chatbotModel.type" @change="chatbotSwitch" :disabled="appType">
+                        <el-radio label="0">内部应用</el-radio>
+                        <el-radio label="1">外部应用</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <div v-show="chatbotModel.type==='0'">
+                    <el-form-item label="选择客户" prop="customerId">
+                        <el-select v-model="chatbotModel.customerId" @input="chang($event)" placeholder="请选择">
+                            <el-option v-for="item in memberList" :key="item.customerId" :label="item.customer.custName"
+                                :value="item.customerId">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="选择应用" prop="appCode">
+                        <el-select v-model="chatbotModel.appCode" @input="chang($event)" placeholder="请选择">
+                            <el-option v-for="item in chatbotBaseList" :key="item.appCode" :label="item.appName" :value="item.appCode">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="通道" prop="passId">
+                        <el-select v-model="chatbotModel.passId" @input="chang($event)" placeholder="请选择">
+                            <el-option v-for="item in channelList" :key="item.id" :label="item.name" :value="item.id">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                </div> -->
+
+
+                <!-- third part -->
+                <div>
+                    <el-form-item label="应用名称" prop="appName">
+                        <el-input v-model="chatbotModel.appName" placeholder="请输入名称" @input="chang($event)" maxlength="128"></el-input>
+                    </el-form-item>
+                    <el-form-item label="应用编码" prop="appCode">
+                        <el-input v-model="chatbotModel.appCode" placeholder="请输入应用编码" @input="chang($event)" maxlength="128"></el-input>
+                    </el-form-item>
+
+                    <!-- <el-form-item label="第三方接入账号" prop="externalappCode">
+                        <el-input v-model="chatbotModel.externalappCode" @input="chang($event)" placeholder="请输入appCode" maxlength="128"></el-input>
+                    </el-form-item> -->
+                    <el-form-item label="接口密码">
+                        <el-input v-model="chatbotModel.apiPwd" @input="chang($event)" placeholder="请输入密码" maxlength="128"></el-input>
+                    </el-form-item>
+                    <el-form-item label="接口回调notifyURL">
+                        <el-input v-model="chatbotModel.apiCallbackUrl" @input="chang($event)" placeholder="请输入notifyURL"
+                            maxlength="128"></el-input>
+                    </el-form-item>
+                    <el-form-item label="接入IP">
+                        <el-input v-model="chatbotModel.accessIp" @input="chang($event)" placeholder="请输入IP,多个IP用逗号分开"
+                            maxlength="128"></el-input>
+                    </el-form-item>
+                    <el-form-item label="通道" prop="chatbotId">
+                        <el-select v-model="chatbotModel.chatbotId" @input="chang($event)" placeholder="请选择">
+                            <el-option v-for="item in channelList" :key="item.id" :label="item.chatbotName" :value="item.id">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                </div>
+            </el-form>
+
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="dialogVisible = false" size="small">取 消</el-button>
+                <el-button type="primary" size="small" @click="saveChatbot">确 定</el-button>
+            </span>
+
+        </el-dialog>
+        <!-- 查看详情 end -->
+    </section>
+</template>
+
+<script>
+    import {
+        getChatbotList,
+        saveChatbotInfo,
+        checkChatbot,
+        delChatbot,
+        getPasswayList,
+        getCustomerList,
+        getChatbotBaseList,
+        updateStatusChatbot
+    } from '../../api/api'
+    export default {
+        name: "ChatbotManage",
+        components: {},
+        props: {
+            scene: {
+                default: 1 //1普通模式2组件模式
+            },
+            regStatus: {
+                default: null
+            },
+            appJson: {
+                default: null
+            },
+            addAndUpdate: {
+                default: 0
+            }
+        },
+        data() {
+            return {
+                appType: false,
+                appTitle: '',
+                params: {
+                    appName: ''
+                },
+
+                tableLoading: false,
+                dialogVisible: false,
+                chatbotList: [{
+                    createTime: '2020-05-15 11:11:11',
+                    mobile: 'chatbot',
+                    content: '你好',
+                }],
+                page: {
+                    curPage: 1,
+                    size: 10,
+                    total: 0
+                }, // 传入后台参数
+                rules: {
+                    appName: [{
+                        required: true,
+                        message: '请输入名称',
+                        trigger: 'blur'
+                    }],
+                    appCode: [{
+                        required: true,
+                        message: '请输入应用编码',
+                        trigger: 'blur'
+                    }],
+                    chatbotId: [{
+                        required: true,
+                        message: '请选择通道',
+                        trigger: 'change'
+                    }],
+                },
+                currentRow: null,
+                channelList: [],
+                memberList: [],
+                chatbotBaseList: [],
+                chatbotModel: {},
+            }
+        },
+        methods: {
+            setStatus(row, status) {
+                updateStatusChatbot({
+                    id: row.id,
+                    runStatus: status
+                }).then(rsp => {
+                    if (rsp.success) {
+                        this.$message.success('修改成功')
+                        this.loadData()
+                    }
+                })
+            },
+            chang(e) {
+                this.$forceUpdate()
+            },
+            handleCurrentChange: function(currentPage) { //改变当前页
+                this.page.curPage = currentPage
+                this.loadData()
+            },
+            handleSizeChange: function(size) { //改变页面size
+                this.page.size = size;
+                this.loadData()
+            },
+            setCurrent(row) {
+                // console.log("this.$refs.singleTable:", this.$refs.singleTable.data[1])
+                this.$refs.singleTable.setCurrentRow(row);
+            },
+            selectCurrentChange(val) {
+                this.currentRow = val;
+                if(this.scene == 2){
+                    this.$emit('selectRow', val)
+                }
+            },
+            search() {
+                console.log(this.params)
+                this.loadData()
+            },
+            register(chatbot) {
+                chatbot.chatbotId = chatbot.id
+                checkChatbot(chatbot).then(rsp => {
+                    if (rsp.success) {
+                        this.$message.success('提交成功')
+                        this.loadData()
+                    } else {
+                        this.$message.error(rsp.message)
+                    }
+                })
+            },
+            toDetail(row) {
+                this.dialogVisible = true
+                this.appType = true
+                this.appTitle = '编辑接口'
+                this.chatbotModel = row
+                console.log('编辑应用：', row)
+                // this.chatbotModel.type = this.chatbotModel.type + ''
+                // this.chatbotModel.chatbotId = this.chatbotModel.id + ''
+                // this.chatbotModel.appCode =row.appCode
+                // this.chatbotModel.customerId =row.customerId
+                // this.chatbotModel.passId =this.chatbotModel.passId
+                // console.log('chatbotModel=---------',this.chatbotModel)
+            },
+            saveChatbot() {
+                // alert(1)
+
+                this.$refs.chatbotForm.validate(valid => {
+                    if (valid) {
+                        saveChatbotInfo(this.chatbotModel).then(rsp => {
+                            if (rsp.success) {
+                                this.$message.success('新增成功')
+                                this.dialogVisible = false
+                                this.loadData()
+                            } else {
+                                this.$message.error(rsp.message)
+                            }
+                        })
+                    }
+                })
+            },
+            deleteData(row) {
+                this.$confirm('此操作将永久删除该CHATBOT, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    row.chatbotId = row.id
+                    console.log('row:', row)
+                    delChatbot(row).then(rsp => {
+                        if (rsp.success) {
+                            this.$message.success('删除成功')
+                            this.loadData()
+                        } else {
+                            this.$message.error(rsp.message)
+                        }
+                    })
+                }).catch(_ => {});
+            },
+            loadData() {
+                let param = {
+                    curPage: this.page.curPage,
+                    size: this.page.size
+                }
+                Object.assign(param, this.params)
+                this.tableLoading = true
+                if (this.regStatus) {
+                    param.regStatus = this.regStatus
+                }
+                getChatbotList(param).then(rsp => {
+                    // console.log('chatbot resp:',rsp)
+                    this.tableLoading = false
+                    this.chatbotList = rsp.data.records
+                    this.page.total = rsp.data.total
+                })
+            },
+            loadChannel() {
+                let param = {
+                    curPage: 1,
+                    size: 1000,
+                    userId: '',
+                    chatbotName: ''
+                }
+                getPasswayList(param).then(rsp => {
+                    this.channelList = rsp.data.records
+                })
+            },
+            loadCustomer() {
+                let param = {
+                    curPage: 1,
+                    size: 1000
+                }
+                getCustomerList(param).then(rsp => {
+                    // console.log('member resp:',rsp)
+                    this.memberList = rsp.data.records
+                })
+            },
+            loadChatbotBase() {
+                getChatbotBaseList({}).then(rsp => {
+                    this.chatbotBaseList = rsp.data
+                })
+            }
+        },
+        activated() {
+            this.loadChannel()
+            this.loadCustomer()
+            this.loadData()
+            this.loadChatbotBase()
+
+            var time;
+            var t_this = this
+            //创建定时器
+            clearTimeout(time)
+            time = setTimeout(function() {
+                //延迟加载处理的方法
+                // console.log("this.addAndUpdate:", t_this.addAndUpdate)
+                // console.log("this.appJson:", t_this.appJson)
+                if (t_this.scene == 2) {
+                    if (t_this.addAndUpdate == 0) {
+                        t_this.setCurrent()
+                    } else if (t_this.addAndUpdate == 1) {
+                        t_this.setCurrent(t_this.appJson)
+                    }
+                }
+            }, 500);
+
+        },
+        activated() {
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 50 - 40 - 51 - 60 - 47 + 'px'
+            this.loadData()
+            this.loadChatbotBase()
+        }
+    }
+</script>
+
+<style scoped lang="less">
+    .chatbot-manage {}
+
+    .spacing {
+        padding: 20px 0px;
+    }
+</style>

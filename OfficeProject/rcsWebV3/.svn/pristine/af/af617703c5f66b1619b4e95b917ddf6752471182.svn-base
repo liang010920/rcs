@@ -1,0 +1,1150 @@
+<template>
+    <section class="chatbotMenu wrap-container">
+        <!-- 固定菜单 start -->
+        <el-form :model="editMenuForm" :rules="editMenuFules" ref="ruleForm" label-width="90px" class="demo-ruleForm">
+            <el-row v-if="fixedMenuBool">
+                <el-col :span="12" align="center">
+                    <div>
+                        <section class="preview-resource">
+                            <div class="preview">
+                                <div class="mobile-header"></div>
+                                <div class="mobile-main scrollbar">
+                                    <div style="height: 398px;"></div>
+                                    <div class="box">
+                                        <div><img src="../../../../static/imgs/keyboard.png" style="width: 20px;">
+                                        </div>
+                                        <div v-for="(item,index) in addMenuList" :key="index" class="addMenu">
+                                            <div :title="item.displayText" class="menuOverflow"
+                                                @click="menuClickInfo(item,index)">{{item.displayText}}</div>
+                                            <div class="childrenMenu" :style="{top:childrenMenuHeight+'px'}"
+                                                v-show="index == relationIndex">
+                                                <div v-for="(item2,index2) in item.childrenMenuList"
+                                                    :key="item2.index2">
+                                                    <div :title="item2.displayText"
+                                                        @click="childrenMenuClickInfo(item,item2)">
+                                                        {{item2.displayText}}
+                                                    </div>
+                                                </div>
+                                                <div v-if="item.childrenMenuList.length < 5"
+                                                    @click="childrenAddMenuClick(index)">+添加子菜单</div>
+                                            </div>
+                                        </div>
+                                        <div v-if="addMenuList.length < 3" @click="addMenuClick">+添加菜单</div>
+                                    </div>
+                                </div>
+                                <div class="mobile-footer"></div>
+                            </div>
+                        </section>
+                    </div>
+                </el-col>
+
+                <el-col :span="12" align="center" v-if="editContentBool==false">请选择菜单进行修改</el-col>
+                <el-col :span="12" align="center" v-if="editContentBool==true">
+                    <div class="editMenu">
+                        <el-row class="newMenu">
+                            <el-col :span="12">新建菜单</el-col>
+                            <el-col :span="12" align="right">
+                                <div @click="delMenu" style="color:#269relationIndex;cursor: pointer;">删除菜单</div>
+                            </el-col>
+                        </el-row>
+                        <el-row v-if="MenuNameBool == 'parent'">
+                            <el-col :span="6" align="right" class="menuLineHeight"><span style="color:red;">*
+                                </span>菜单名称：</el-col>
+                            <el-col :span="18">
+                                <el-input v-model="editMenuForm.displayText" maxlength='12' @change="menuNameBlur"
+                                    placeholder="请输入菜单名称"></el-input>
+                            </el-col>
+                        </el-row>
+                        <el-row v-else>
+                            <el-col :span="6" align="right" class="menuLineHeight"><span style="color:red;">*
+                                </span>子菜单名称：</el-col>
+                            <el-col :span="18">
+                                <el-input v-model="editMenuForm.displayText" maxlength='12'
+                                    @change="childrenMenuNameBlur" placeholder="请输入菜单名称"></el-input>
+                            </el-col>
+                        </el-row>
+                        <el-row>
+                            <el-col :span="18" :offset='6' style="color:#C5C5C5">名称由中英文、数字组成，字数不超过12字符</el-col>
+                        </el-row>
+                        <el-row v-if="menuContentBool">
+                            <el-col :span="6" align="right" class="menuLineHeight"><span style="color:red;">*
+                                </span>菜单内容：</el-col>
+                            <el-col :span="18">
+                                <template>
+
+                                    <el-tabs v-model="editMenuForm.menuType" @tab-click="handleClick">
+                                        <el-tab-pane label="关键词" :name="1">
+                                            <!-- <el-row>
+                                                    <el-col :span="24">
+                                                        <el-input maxlength="30" @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()"
+                                                            v-model="editMenuForm.menuContent" placeholder="新建关键词"></el-input>
+                                                    </el-col>
+                                                </el-row> -->
+                                        </el-tab-pane>
+                                        <el-tab-pane label="打开URL" :name="2">
+                                            <!-- <el-row>
+                                                    <el-col :span="24">
+                                                        <el-input maxlength="1500" @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()"
+                                                            v-model="editMenuForm.menuContent" placeholder="请输入URL链接"></el-input>
+                                                    </el-col>
+                                                </el-row> -->
+                                        </el-tab-pane>
+                                        <el-tab-pane label="拔打电话" :name="3">
+                                            <!-- <el-row>
+                                                    <el-col :span="24">
+                                                        <el-input maxlength="30" @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()"
+                                                            v-model="editMenuForm.menuContent" placeholder="请输入号码"></el-input>
+                                                    </el-col>
+                                                </el-row> -->
+                                        </el-tab-pane>
+                                        <el-tab-pane label="视频电话" :name="4"></el-tab-pane>
+                                        <el-tab-pane label="地图" :name="5"></el-tab-pane>
+                                        <el-tab-pane label="请求位置推送" :name="6"></el-tab-pane>
+                                        <el-tab-pane label="日历" :name="7"></el-tab-pane>
+                                        <el-tab-pane label="发送文本消息" :name="8"></el-tab-pane>
+                                        <el-tab-pane label="录制音视频" :name="9"></el-tab-pane>
+                                        <el-tab-pane label="共享设备信息" :name="10"></el-tab-pane>
+                                    </el-tabs>
+                                    <div>
+                                        <el-form-item label="返回数据" prop="data">
+                                            <el-input v-model="editMenuForm.data" placeholder="请输入返回数据" maxlength="25"
+                                                show-word-limit
+                                                @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                            </el-input>
+                                        </el-form-item>
+
+                                        <!-- url配置 -->
+                                        <el-form-item label="URL地址" prop="url" v-if="editMenuForm.menuType == 2">
+                                            <el-input v-model="editMenuForm.url" placeholder="请输入URL地址"
+                                                @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                            </el-input>
+                                        </el-form-item>
+
+                                        <!-- 电话 -->
+                                        <el-form-item label="联系方式" prop="phoneNumber"
+                                            v-if="editMenuForm.menuType == 3 || editMenuForm.menuType == 4 || editMenuForm.menuType == 8 || editMenuForm.menuType == 9">
+                                            <el-input v-model="editMenuForm.phoneNumber" placeholder="请输入联系方式"
+                                                @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                            </el-input>
+                                        </el-form-item>
+
+                                        <!-- 视频电话 -->
+
+                                        <!-- 地图 -->
+                                        <div  v-if="editMenuForm.menuType == 5">
+                                            <el-form-item label="纬度" prop="latitude">
+                                                <el-input v-model="editMenuForm.latitude" placeholder="请输入纬度"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-input>
+                                            </el-form-item>
+                                            <el-form-item label="经度" prop="longitude">
+                                                <el-input v-model="editMenuForm.longitude" placeholder="请输入经度"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-input>
+                                            </el-form-item>
+                                            <el-form-item label="查询" prop="query">
+                                                <el-input v-model="editMenuForm.query" placeholder="请输入查询"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-input>
+                                            </el-form-item>
+                                            <el-form-item label="标签" prop="label">
+                                                <el-input v-model="editMenuForm.label" placeholder="请输入标签"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-input>
+                                            </el-form-item>
+                                        </div>
+
+
+                                        <!-- 请求位置推送 -->
+                                        <!-- <el-form-item label="请求位置推送" prop="requestLocationPush"
+                                                v-if="editMenuForm.menuType == 6">
+                                                <el-input v-model="editMenuForm.requestLocationPush"
+                                                    placeholder="请输入请求位置推送"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-input>
+                                            </el-form-item> -->
+
+                                        <!--日历 -->
+                                        <div v-if="editMenuForm.menuType == 7">
+                                            <el-form-item label="时间" prop="dateTime">
+                                                <el-date-picker v-model="editMenuForm.dateTime" type="datetimerange"
+                                                    range-separator="至" value-format="yyyy-MM-dd HH:mm:ss"
+                                                    start-placeholder="开始日期" end-placeholder="结束日期"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-date-picker>
+                                            </el-form-item>
+                                            <el-form-item label="主题" prop="title">
+                                                <el-input v-model="editMenuForm.title" placeholder="请输入主题"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-input>
+                                            </el-form-item>
+                                            <el-form-item label="描述" prop="description">
+                                                <el-input v-model="editMenuForm.description" placeholder="请输入描述"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-input>
+                                            </el-form-item>
+                                        </div>
+
+                                        <!-- 终端向特定对象发送文本消息 -->
+                                        <el-form-item label="文本" prop="text" v-if="editMenuForm.menuType == 8">
+                                            <el-input v-model="editMenuForm.text" placeholder="请输入文本"
+                                                @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                            </el-input>
+                                        </el-form-item>
+
+                                        <!-- 终端录制音视频并发送给特定对象 -->
+                                        <el-form-item label="电话类型" prop="phoneType"
+                                            v-if="editMenuForm.menuType == 9">
+                                            <el-input v-model="editMenuForm.phoneType" placeholder="请输入电话类型"
+                                                @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                            </el-input>
+                                        </el-form-item>
+
+                                        <!-- 终端录制音视频并发送给特定对象 -->
+                                        <!-- <el-form-item label="共享设备" prop="enableDisplayedNotifications"
+                                                v-if="editMenuForm.menuType == 10">
+                                                <el-input v-model="editMenuForm.enableDisplayedNotifications"
+                                                    placeholder="请输入共享设备"
+                                                    @change="MenuNameBool == 'parent' ? menuNameBlur() : childrenMenuNameBlur()">
+                                                </el-input>
+                                            </el-form-item> -->
+                                    </div>
+
+                                </template>
+                            </el-col>
+                        </el-row>
+                    </div>
+                </el-col>
+            </el-row>
+            <div class="dialog-footer" style="margin-top: 10px;" align="center">
+                <el-button @click="cancel" size="small">取 消</el-button>
+                <el-button type="primary" size="small" @click="submitToExamine">保存</el-button>
+                <!-- <el-button type="primary" v-if="addMenuList.length > 0" @click="copyMenu" v-clipboard:copy="copyMenuJson"
+                        v-clipboard:success="onCopy" v-clipboard:error="onError" size="small">复制菜单内容</el-button> -->
+            </div>
+        </el-form>
+        <!-- 固定菜单 end -->
+
+    </section>
+</template>
+
+<script>
+    import {
+        getPasswayMenu,
+        modPasswayMenu,
+        getChatbot,
+        setChatbotMenu
+    } from '@/api/api'
+    export default {
+        name: "chatbotMenu",
+        components: {},
+        data() {
+            return {
+                editMenuFules: {
+                    displayText: [{
+                        required: true,
+                        message: '请输入按钮名称',
+                        trigger: 'blur'
+                    }],
+                    data: [{
+                        required: true,
+                        message: '请输入返回数据',
+                        trigger: 'blur'
+                    }],
+                    url: [{
+                        required: true,
+                        message: '请输入URL地址',
+                        trigger: 'blur'
+                    }],
+                    phoneNumber: [{
+                        required: true,
+                        message: '请输入联系方式',
+                        trigger: 'blur'
+                    }],
+                    latitude: [{
+                        required: true,
+                        message: '请输入纬度',
+                        trigger: 'blur'
+                    }],
+                    longitude: [{
+                        required: true,
+                        message: '请输入进度',
+                        trigger: 'blur'
+                    }],
+                    query: [{
+                        required: true,
+                        message: '请输入查询',
+                        trigger: 'blur'
+                    }],
+                    label: [{
+                        required: true,
+                        message: '请输入标签',
+                        trigger: 'blur'
+                    }],
+                    // requestLocationPush: [{
+                    //     required: true,
+                    //     message: '请输入请求位置推送',
+                    //     trigger: 'blur'
+                    // }],
+                    dateTime: [{
+                        required: true,
+                        message: '请选择时间',
+                        trigger: 'change'
+                    }],
+                    title: [{
+                        required: true,
+                        message: '请输入主题',
+                        trigger: 'blur'
+                    }],
+                    description: [{
+                        required: true,
+                        message: '请输入描述',
+                        trigger: 'blur'
+                    }],
+                    text: [{
+                        required: true,
+                        message: '请输入文本信息',
+                        trigger: 'blur'
+                    }],
+                    phoneType: [{
+                        required: true,
+                        message: '请输入电话类型',
+                        trigger: 'blur'
+                    }],
+                    // enableDisplayedNotifications: [{
+                    //     required: true,
+                    //     message: '请输入共享设备',
+                    //     trigger: 'blur'
+                    // }]
+                },
+                fixedMenuBool: false,
+                addMenuList: [],
+                editMenuForm: {
+                    menuType: 1,
+                    displayText: '',
+                    data: '',
+                    url: '',
+                    phoneNumber: '',
+                    latitude: '',
+                    longitude: '',
+                    query: '',
+                    label: '',
+                    requestLocationPush: '',
+                    dateTime: [],
+                    title: '',
+                    description: '',
+                    text: '',
+                    phoneType: '',
+                    enableDisplayedNotifications: ''
+                },
+                MenuNameBool: 'parent',
+                menuId: 0,
+                idIndex: 0,
+                childrenIdIndex: 0,
+                cunChuOneMenu: {},
+                copyMenuJson: '',
+                chotbotType: [],
+                chatbotList: {},
+                editContentBool: false,
+                menuContentBool: true,
+                relationIndex: -1,
+
+                childrenMenuHeight:-42,//子菜单高度
+
+            }
+        },
+        props: {
+            chatbotMenuId: {
+                type: Number,
+                default: null,
+            },
+            chatbotOperationType: {
+                type: String,
+                default: null //1为chatbot管理 2为运营管理下的chatbot管理
+            }
+        },
+        watch: {
+            "channelModel.chatbotType"(val) {
+                this.carrierType = val
+            }
+        },
+        methods: {
+            cancel() {
+                this.fixedMenuBool = false
+                this.$emit('cancel', this.fixedMenuBool = false)
+            },
+            //转为json格式
+            copyMenu() {
+                this.$refs.ruleForm.validate((valid) => {
+                    if (valid) {
+                        this.copyMenuJson = JSON.stringify(this.addMenuList)
+                        console.log('copyMenuInfo:', this.copyMenuJson)
+                    }
+                });
+            },
+            onCopy(e) {
+                this.$refs.ruleForm.validate((valid) => {
+                    if (valid) {
+                        this.$message.success("如有修改添加菜单,请先提交,内容已复制到剪切板！")
+                    }
+                });
+            },
+            // 复制失败时的回调函数
+            onError(e) {
+                this.$message.error("抱歉，复制失败！")
+            },
+            //提交审核
+            submitToExamine() {
+                this.$refs.ruleForm.validate((valid) => {
+                    if (valid) {
+                        var jsonList = JSON.stringify(this.addMenuList)
+                        if (this.chatbotOperationType == '1') {
+                            modPasswayMenu({
+                                id: this.chatbotList.id,
+                                menu: jsonList
+                            }).then(rsp => {
+                                if (rsp.success) {
+                                    // this.fixedMenuBool = false;
+                                    this.$message.success('保存成功')
+                                    this.$emit('refreshList')
+                                    // getPasswayMenu({
+                                    //     id: this.chatbotMenuId
+                                    // }).then(res => {
+                                    //     this.copyMenuJson = res.data.jsonMenu
+                                    // })
+                                }
+                            })
+                        }else{
+                            setChatbotMenu({
+                                id: this.chatbotList.id,
+                                menuView: jsonList
+                            }).then(rsp => {
+                                if (rsp.success) {
+                                    // this.fixedMenuBool = false;
+                                    this.$message.success('保存成功')
+                                    this.$emit('refreshList')
+                                }
+                            })
+                        }
+
+                    }
+                });
+            },
+            //删除菜单
+            delMenu() {
+                if (this.addMenuList.length > 0) {
+                    this.$confirm('此操作将永久删除该菜单, 是否继续?', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        this.editContentBool = false
+                        if (this.MenuNameBool == 'parent') {
+                            for (var i = 0; i < this.addMenuList.length; i++) {
+                                if (this.menuId == this.addMenuList[i].id) {
+                                    console.log("11111下标--------", i)
+                                    this.addMenuList.splice(i, 1);
+                                }
+                            }
+                        } else {
+                            for (var i = 0; i < this.addMenuList.length; i++) {
+                                if (this.cunChuOneMenu.id == this.addMenuList[i].id) {
+                                    for (var j = 0; j < this.addMenuList[i].childrenMenuList.length; j++) {
+                                        if (this.menuId == this.addMenuList[i].childrenMenuList[j].id) {
+                                            this.addMenuList[i].childrenMenuList.splice(j, 1);
+                                            // this.addMenuList[i].childrenMenuHeight += 32;
+                                            this.childrenMenuHeight += 32;
+                                            // if (this.addMenuList[i].childrenMenuList.length == 0) {
+                                            //     this.addMenuList[i].menuContentBool = true
+                                            //     this.addMenuList[i].menuContentType = this.addMenuList[i]
+                                            //         .menuType
+                                            // }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        this.copyMenuJson = JSON.stringify(this.addMenuList)
+                        this.$message.success('删除成功')
+                    })
+                } else {
+                    this.$message.error('请选择菜单')
+                }
+            },
+            //获取菜单消息
+            getMenuData(item){
+                this.editMenuForm.displayText = item.displayText
+                this.editMenuForm.data = item.data
+                if (item.menuType == 2) {
+                    this.editMenuForm.url = item.url
+                } else if (item.menuType == 3) {
+                    this.editMenuForm.phoneNumber = item.phoneNumber
+                } else if (item.menuType == 4) {
+                    this.editMenuForm.phoneNumber = item.phoneNumber
+                } else if (item.menuType == 5) {
+                    this.editMenuForm.latitude = item.latitude
+                    this.editMenuForm.longitude = item.longitude
+                    this.editMenuForm.query = item.query
+                    this.editMenuForm.label = item.label
+                } else if (item.menuType == 6) {
+                    this.editMenuForm.requestLocationPush = item.requestLocationPush
+                } else if (item.menuType == 7) {
+                    this.editMenuForm.dateTime = []
+                    this.editMenuForm.dateTime.push(item.startTime)
+                    this.editMenuForm.dateTime.push(item.endTime)
+                    this.editMenuForm.title = item.title
+                    this.editMenuForm.description = item.description
+                } else if (item.menuType == 8) {
+                    this.editMenuForm.phoneNumber = item.phoneNumber
+                    this.editMenuForm.text = item.text
+                } else if (item.menuType == 9) {
+                    this.editMenuForm.phoneNumber = item.phoneNumber
+                    this.editMenuForm.phoneType = item.phoneType
+                } else if (item.menuType == 10) {
+                    this.editMenuForm.enableDisplayedNotifications = item.enableDisplayedNotifications
+                }
+            },
+            //点击菜单获取菜单信息
+            menuClickInfo(item, index) {
+                this.$refs.ruleForm.validate((valid) => {
+                    if (valid) {
+                        this.relationIndex = index
+                        this.getMenuData(item)
+                        this.MenuNameBool = 'parent'
+                        this.menuId = item.id
+                        this.editContentBool = true
+                        this.editMenuForm.menuType = item.menuType
+                        // this.menuContentBool = item.menuContentBool
+                        for(var i=0;i<this.addMenuList.length;i++){
+                            if(i == index){
+                                let childrenLength = this.addMenuList[i].childrenMenuList.length
+                                this.childrenMenuHeight = -42
+                                this.childrenMenuHeight += (-32*childrenLength)
+                                this.menuContentBool = childrenLength == 0 ? true : false
+                            }
+
+                        }
+                    }
+                });
+
+            },
+            //点击子菜单获取子菜单信息
+            childrenMenuClickInfo(item, item2) {
+                this.$refs.ruleForm.validate((valid) => {
+                    if (valid) {
+                        this.editContentBool = true
+                        this.menuContentBool = true
+                        this.getMenuData(item2)
+                        this.MenuNameBool = 'children'
+                        this.cunChuOneMenu = item
+                        this.menuId = item2.id
+                        this.editMenuForm.menuType = item2.menuType
+                    }
+                });
+
+            },
+            //给菜单赋值
+            menuNameBlur() {
+                for (var i = 0; i < this.addMenuList.length; i++) {
+                    if (this.menuId == this.addMenuList[i].id) {
+                        this.addMenuList[i].displayText = this.editMenuForm.displayText;
+                        this.addMenuList[i].data = this.editMenuForm.data;
+                        if (this.editMenuForm.menuType == 2) {
+                            this.addMenuList[i].url = this.editMenuForm.url
+                        } else if (this.editMenuForm.menuType == 3) {
+                            this.addMenuList[i].phoneNumber = this.editMenuForm.phoneNumber
+                        } else if (this.editMenuForm.menuType == 4) {
+                            this.addMenuList[i].phoneNumber = this.editMenuForm.phoneNumber
+                        } else if (this.editMenuForm.menuType == 5) {
+                            this.addMenuList[i].latitude = this.editMenuForm.latitude
+                            this.addMenuList[i].longitude = this.editMenuForm.longitude
+                            this.addMenuList[i].query = this.editMenuForm.query
+                            this.addMenuList[i].label = this.editMenuForm.label
+                        } else if (this.editMenuForm.menuType == 6) {
+                            this.addMenuList[i].requestLocationPush = this.editMenuForm.requestLocationPush
+                        } else if (this.editMenuForm.menuType == 7) {
+                            if (this.editMenuForm.dateTime != undefined) {
+                                this.addMenuList[i].startTime = this.editMenuForm.dateTime[0]
+                                this.addMenuList[i].endTime = this.editMenuForm.dateTime[1]
+                            }
+                            this.addMenuList[i].title = this.editMenuForm.title
+                            this.addMenuList[i].description = this.editMenuForm.description
+                        } else if (this.editMenuForm.menuType == 8) {
+                            this.addMenuList[i].phoneNumber = this.editMenuForm.phoneNumber
+                            this.addMenuList[i].text = this.editMenuForm.text
+                        } else if (this.editMenuForm.menuType == 9) {
+                            this.addMenuList[i].phoneNumber = this.editMenuForm.phoneNumber
+                            this.addMenuList[i].phoneType = this.editMenuForm.phoneType
+                        } else if (this.editMenuForm.menuType == 10) {
+                            this.addMenuList[i].enableDisplayedNotifications = this.editMenuForm
+                                .enableDisplayedNotifications
+                        }
+                        // this.addMenuList[i].menuContent = this.editMenuForm.menuContent;
+                        this.addMenuList[i].menuType = this.editMenuForm.menuType
+                        // this.addMenuList[i].menuContentType = this.editMenuForm.menuType
+                    }
+                }
+                this.copyMenuJson = JSON.stringify(this.addMenuList)
+            },
+            //给子菜单赋值
+            childrenMenuNameBlur() {
+                let formInfo = this.editMenuForm
+                for (var i = 0; i < this.addMenuList.length; i++) {
+                    if (this.cunChuOneMenu.id == this.addMenuList[i].id) {
+                        for (var j = 0; j < this.addMenuList[i].childrenMenuList.length; j++) {
+                            if (this.menuId == this.addMenuList[i].childrenMenuList[j].id) {
+                                // Object.assign(formInfo, this.addMenuList[i].childrenMenuList[j])
+                                // this.addMenuList[i].childrenMenuList[j] = formInfo
+                                this.addMenuList[i].childrenMenuList[j].displayText = this.editMenuForm.displayText;
+                                this.addMenuList[i].childrenMenuList[j].data = this.editMenuForm.data;
+                                if (this.editMenuForm.menuType == 2) {
+                                    this.addMenuList[i].childrenMenuList[j].url = this.editMenuForm.url
+                                } else if (this.editMenuForm.menuType == 3) {
+                                    this.addMenuList[i].childrenMenuList[j].phoneNumber = this.editMenuForm
+                                        .phoneNumber
+                                } else if (this.editMenuForm.menuType == 4) {
+                                    this.addMenuList[i].childrenMenuList[j].phoneNumber = this.editMenuForm
+                                        .phoneNumber
+                                } else if (this.editMenuForm.menuType == 5) {
+                                    this.addMenuList[i].childrenMenuList[j].latitude = this.editMenuForm.latitude
+                                    this.addMenuList[i].childrenMenuList[j].longitude = this.editMenuForm.longitude
+                                    this.addMenuList[i].childrenMenuList[j].query = this.editMenuForm.query
+                                    this.addMenuList[i].childrenMenuList[j].label = this.editMenuForm.label
+                                } else if (this.editMenuForm.menuType == 6) {
+                                    this.addMenuList[i].childrenMenuList[j].requestLocationPush = this.editMenuForm
+                                        .requestLocationPush
+                                } else if (this.editMenuForm.menuType == 7) {
+                                    if (this.editMenuForm.dateTime != undefined) {
+                                        this.addMenuList[i].childrenMenuList[j].startTime = this.editMenuForm
+                                            .dateTime[0]
+                                        this.addMenuList[i].childrenMenuList[j].endTime = this.editMenuForm.dateTime[
+                                            1]
+                                    }
+                                    this.addMenuList[i].childrenMenuList[j].title = this.editMenuForm.title
+                                    this.addMenuList[i].childrenMenuList[j].description = this.editMenuForm
+                                        .description
+                                } else if (this.editMenuForm.menuType == 8) {
+                                    this.addMenuList[i].childrenMenuList[j].phoneNumber = this.editMenuForm
+                                        .phoneNumber
+                                    this.addMenuList[i].childrenMenuList[j].text = this.editMenuForm.text
+                                } else if (this.editMenuForm.menuType == 9) {
+                                    this.addMenuList[i].childrenMenuList[j].phoneNumber = this.editMenuForm
+                                        .phoneNumber
+                                    this.addMenuList[i].childrenMenuList[j].phoneType = this.editMenuForm.phoneType
+                                } else if (this.editMenuForm.menuType == 10) {
+                                    this.addMenuList[i].childrenMenuList[j].enableDisplayedNotifications = this
+                                        .editMenuForm.enableDisplayedNotifications
+                                }
+
+                                this.addMenuList[i].childrenMenuList[j].menuType = this.editMenuForm.menuType;
+                                // this.addMenuList[i].childrenMenuList[j].menuContentType = this.editMenuForm.menuType;
+                                // console.log('菜单信息22----------', this.addMenuList[i])
+                            }
+                        }
+                    }
+                }
+                this.copyMenuJson = JSON.stringify(this.addMenuList)
+            },
+            handleClick(tab, event) {
+                this.editMenuForm = {
+                        menuType: tab.name,
+                        displayText: this.editMenuForm.displayText,
+                        data: ''
+                    },
+                    console.log(tab, event);
+            },
+            addMenuClick() {
+                if (this.addMenuList.length > 0) {
+                    this.$refs.ruleForm.validate((valid) => {
+                        if (valid) {
+                            this.doAddMenuClick()
+                        }
+                    });
+                } else {
+                    this.doAddMenuClick()
+                }
+
+            },
+
+            doAddMenuClick() {
+                if (this.addMenuList.length != 0) {
+                    var maxNum = Math.max.apply(Math, this.addMenuList.map(function(o) {
+                        return o.id
+                    }))
+                    this.idIndex = maxNum + 1
+                } else {
+                    ++this.idIndex
+                }
+                this.addMenuList.push({
+                    id: this.idIndex,
+                    displayText: '菜单名称',
+                    childrenMenuList: [],
+                    // childrenMenuHeight: -42,
+                    // menuParentChildren: 'parent',
+                    menuType: 1,
+                    // menuContentType: 'N1',
+                    // menuContentBool: true
+                })
+                this.childrenMenuHeight = -42
+                this.relationIndex = this.addMenuList.length
+                this.relationIndex -= 1
+                let menuListLast = this.addMenuList
+                menuListLast = menuListLast[menuListLast.length - 1]
+                this.editMenuForm.displayText = menuListLast.displayText
+                this.MenuNameBool = 'parent'
+                this.menuId = menuListLast.id
+                this.editMenuForm.menuType = 1
+                this.editMenuForm.data = ''
+                // this.menuContentType = 'N0'
+                this.editContentBool = true
+                this.menuContentBool = true
+
+                this.copyMenuJson = JSON.stringify(this.addMenuList)
+            },
+
+            childrenAddMenuClick(index) {
+                // for(var j = 0;j<this.addMenuList.length;j++){
+                if (this.addMenuList[index].childrenMenuList.length == 0) {
+                    this.$confirm('添加子菜单后，一级菜单仅显示菜单名称，内容将失效', '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        this.childrenAddMenuInfo(index)
+                    })
+                } else {
+                    this.childrenAddMenuInfo(index)
+                }
+                // }
+
+            },
+            childrenAddMenuInfo(index) {
+                this.$refs.ruleForm.validate((valid) => {
+                    if (valid) {
+                        this.editContentBool = true
+                        this.menuContentBool = true
+
+                        for (var i = 0; i < 3; i++) {
+                            if (index == i) {
+                                // this.addMenuList[i].menuContentBool = false
+                                if (this.addMenuList[i].childrenMenuList.length != 0) {
+                                    var childrenMaxNum = Math.max.apply(Math, this.addMenuList[i]
+                                        .childrenMenuList
+                                        .map(
+                                            function(o) {
+                                                return o.id
+                                            }))
+                                    this.childrenIdIndex = childrenMaxNum + 1
+                                } else {
+                                    ++this.childrenIdIndex
+                                }
+
+                                this.addMenuList[i].childrenMenuList.push({
+                                    id: this.childrenIdIndex + '01',
+                                    displayText: '子菜单名称',
+                                    // menuParentChildren: 'children',
+                                    menuType: 1,
+                                    // menuContentType: 'N1'
+                                })
+                                if (this.addMenuList[i].childrenMenuList.length < 5) {
+                                    // this.addMenuList[i].childrenMenuHeight -= 32;
+                                    this.childrenMenuHeight -= 32;
+                                }
+                                let menuListLast = this.addMenuList[i].childrenMenuList
+                                menuListLast = menuListLast[menuListLast.length - 1]
+
+                                // this.addMenuList[index].menuContentType = 'N0'
+                                this.editMenuForm.displayText = menuListLast.displayText
+                                this.MenuNameBool = 'children'
+                                this.cunChuOneMenu = this.addMenuList[i]
+                                this.menuId = menuListLast.id
+                                this.editMenuForm.menuType = 1
+                                this.editMenuForm.data = ''
+                                this.editContentBool = true
+                                // this.copyMenuJson = JSON.stringify(this.addMenuList)
+                            }
+                        }
+                    }
+                });
+            },
+
+            fixedMenu() {
+                // console.log('row---:', row)
+                if (this.chatbotOperationType == '1') {
+                    getPasswayMenu({
+                        id: this.chatbotMenuId
+                    }).then(res => {
+                        this.fixedMenuBool = true;
+                        if (res.data.menu == null) {
+                            this.addMenuList = []
+                            this.chatbotList = res.data
+                            this.chatbotList.id = this.chatbotMenuId
+                            this.editContentBool = false
+                        } else {
+                            this.editContentBool = false
+                            this.chatbotList = res.data
+                            this.chatbotList.id = this.chatbotMenuId
+                            this.addMenuList = JSON.parse(res.data.menu)
+                            this.copyMenuJson = res.data.jsonMenu
+                            // console.log('this.copyMenuJson:', this.copyMenuJson)
+                        }
+                    })
+                }else{
+                    getChatbot({
+                        id: this.chatbotMenuId
+                    }).then(res => {
+                        this.fixedMenuBool = true;
+                        if (res.data.menuView == null) {
+                            this.addMenuList = []
+                            this.chatbotList = res.data
+                            this.chatbotList.id = this.chatbotMenuId
+                            this.editContentBool = false
+                        } else {
+                            this.editContentBool = false
+                            this.chatbotList = res.data
+                            this.chatbotList.id = this.chatbotMenuId
+                            this.addMenuList = JSON.parse(res.data.menuView)
+                            this.copyMenuJson = res.data.jsonMenu
+                            // console.log('this.copyMenuJson:', this.copyMenuJson)
+                        }
+                    })
+                }
+            },
+        },
+        mounted() {
+            this.fixedMenu()
+        },
+        activated() {
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 84 - 40 - 52 - 40 - 47 + 'px'
+        }
+    }
+</script>
+
+<style lang="less">
+    .chatbotMenu {
+        .el-dialog__footer {
+            text-align: center !important;
+        }
+
+        .addChatbot {
+            .el-dialog {
+                margin-top: 10vh !important;
+                width: 60%;
+                overflow: hidden;
+                height: 82%;
+
+                .el-dialog__body {
+                    height: 85%;
+                    overflow: auto;
+
+                    &::-webkit-scrollbar {
+                        width: 4px;
+                        height: 0px;
+                    }
+
+                    &::-webkit-scrollbar-thumb {
+                        border-radius: 10px;
+                        -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                        background: rgba(0, 0, 0, 0.2);
+                    }
+
+                    &::-webkit-scrollbar-track {
+                        -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                        border-radius: 0;
+                        background: rgba(0, 0, 0, 0.1);
+                    }
+                }
+            }
+        }
+
+        .extensionInfo {
+            .el-dialog {
+                margin-top: 12vh !important;
+
+                .el-dialog__body {
+                    overflow: auto;
+                    height: 600px;
+
+                    .bottom-margin {
+                        margin-bottom: 0 !important;
+                    }
+                }
+            }
+        }
+
+        .el-table__body-wrapper {
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        .editMenu {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 80%;
+            height: 560px;
+            padding: 20px;
+            text-align: left;
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 4px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+
+
+            .el-input__inner {
+                width: 100%;
+            }
+
+            .menuMargin {
+                margin-top: 10px;
+            }
+
+            .menuLineHeight {
+                line-height: 40px;
+            }
+
+            .newMenu {
+                padding-bottom: 10px;
+                border-bottom: 1px solid #ccc;
+            }
+
+            >div {
+                margin-bottom: 15px;
+            }
+        }
+
+        .preview-resource {
+            .preview {
+                width: 300px;
+                margin: auto;
+
+                .mobile-header {
+                    height: 60px;
+                    border-radius: 15px 15px 0 0;
+                    background-color: #333333;
+                    text-align: center;
+
+                    &::before {
+                        display: inline-block;
+                        width: 6px;
+                        height: 6px;
+                        margin: 27px 6px;
+                        background-color: white;
+                        border-radius: 50%;
+                        content: '';
+                    }
+
+                    &::after {
+                        display: inline-block;
+                        width: 30px;
+                        height: 6px;
+                        margin: 27px 6px;
+                        background-color: white;
+                        border-radius: 20px;
+                        content: '';
+                    }
+                }
+
+                .mobile-main {
+                    height: 440px;
+                    // padding: 10px 15px;
+                    border: 1px solid #e1e1e1;
+                    position: relative;
+                    border-width: 0 1px 0 1px;
+                    overflow-y: auto;
+
+                    .box {
+                        display: flex;
+                        background-color: #f5f5f5;
+                        text-align: center;
+                        border-top: 1px solid #ccc;
+
+                        >div {
+                            border-right: 1px solid #ccc;
+                            padding: 10px;
+                            cursor: pointer;
+                            position: relative;
+                        }
+
+                        .addMenu {
+                            padding: 10px 14px !important;
+
+                            .menuOverflow {
+                                overflow: hidden;
+                                width: 56px;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                        }
+
+                        >div:last-child {
+                            // border-top: 1px solid #ccc;
+                            border-right: 0px solid #ccc;
+
+                        }
+
+                        .childrenMenu {
+                            background-color: #fff;
+                            position: absolute;
+                            left: 0;
+                            border-radius: 5px;
+                            box-shadow: 0 0 5px #ccc;
+
+                            >div {
+                                padding: 7px;
+                                font-size: 12px;
+                                border-bottom: 1px solid #ccc;
+
+                                >div {
+                                    overflow: hidden;
+                                    width: 66px;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                }
+                            }
+
+                        }
+                    }
+
+                    .title-m {
+                        display: flex;
+                        align-items: center;
+                        padding: 5px 0 12px 0;
+                        font-size: 14px;
+                        color: #66b1ff;
+
+                        img {
+                            height: 24px;
+                            margin-right: 6px;
+                        }
+
+                    }
+
+                    .item-desc {
+                        .desc {
+                            margin-top: -11px;
+                            padding: 10px 0;
+                            font-size: 14px;
+                            line-height: 20px;
+
+                            /*background-color: #f1f1f1;*/
+                            h3 {
+                                padding: 8px 10px;
+                                font-size: 15px;
+                                color: #303133;
+                                text-align: center;
+                            }
+
+                            p {
+                                margin: 10px 0;
+                                padding: 0 10px;
+                                max-height: 80px;
+                                overflow-y: auto;
+                            }
+
+                            .button {
+                                width: 80%;
+                                margin: 5px auto 8px auto;
+                                /*line-height: 34px;*/
+                                font-size: 14px;
+                                background-color: white;
+                                border-radius: 10px;
+                                text-align: center;
+                            }
+                        }
+                    }
+
+                    .text {
+                        .desc {
+                            margin-top: 0px;
+
+                            h3 {
+                                padding-top: 0;
+                            }
+                        }
+                    }
+
+                    .image,
+                    .video {
+                        .desc {
+                            margin-top: 0px;
+                            padding-top: 0;
+
+                            h3 {
+                                padding-bottom: 2px;
+                            }
+                        }
+
+                    }
+
+                    .suggest {
+                        display: inline-block;
+                        padding: 0 10px;
+                        height: 20px;
+                        line-height: 20px;
+                        font-size: 12px;
+                        border-radius: 4px;
+                        margin-right: 10px;
+                        background-color: #f1f1f1;
+                    }
+                }
+
+                .mobile-footer {
+                    height: 60px;
+                    border-radius: 0 0 15px 15px;
+                    background-color: #333333;
+                    text-align: center;
+
+                    &::before {
+                        display: inline-block;
+                        width: 36px;
+                        height: 36px;
+                        margin-top: 12px;
+                        border: 2px solid white;
+                        border-radius: 50%;
+                        content: '';
+                    }
+                }
+            }
+
+            .scrollbar::-webkit-scrollbar {
+                width: 1px;
+            }
+
+            .desc .scrollbar::-webkit-scrollbar {
+                width: 4px;
+            }
+        }
+    }
+</style>

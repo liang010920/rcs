@@ -1,0 +1,141 @@
+<template>
+    <el-scrollbar wrapClass="scrollbar-wrapper">
+
+        <el-menu
+            mode="vertical"
+            :show-timeout="200"
+            :default-active="defaultIndex"
+            :collapse="isCollapse"
+            background-color="#F5F5F5"
+            text-color="#787878"
+            active-text-color="#49B8FA"
+        >
+
+            <!--<div class="menu-wrapper">-->
+            <!--<router-link :to="resolvePath('dashboard')" >-->
+            <!--<el-menu-item index="1" :class="{'submenu-title-noDropdown':true}">-->
+            <!--<svg-icon icon-class="dashboard"/>-->
+            <!--<span slot="title">首页</span>-->
+            <!--</el-menu-item>-->
+            <!--</router-link>-->
+            <!--<el-menu-item index="2" :class="{'submenu-title-noDropdown':true}">-->
+            <!--<svg-icon icon-class="dashboard"/>-->
+            <!--<span slot="title">用户管理</span>-->
+            <!--</el-menu-item>-->
+            <!--<el-submenu index="3">-->
+            <!--<template slot="title">-->
+            <!--<svg-icon icon-class="dashboard"/>-->
+            <!--<span>商品管理</span>-->
+            <!--</template>-->
+            <!--<el-menu-item index="3-1">体验类</el-menu-item>-->
+            <!--<el-menu-item index="3-2">住宿类</el-menu-item>-->
+            <!--<el-menu-item index="3-3">邮寄类</el-menu-item>-->
+            <!--</el-submenu>-->
+            <!--</div>-->
+
+            <!--将首页静态路由手动配置在左侧菜单-->
+            <router-link :to="resolvePath(menuIndex)">
+                <el-menu-item :index=menuIndex.path :class="{'submenu-title-noDropdown':true}">
+                    <svg-icon :icon-class=menuIndex.icon />
+                    <span slot="title">{{menuIndex.name}}</span>
+                </el-menu-item>
+            </router-link>
+
+            <template v-for="(menu, index) in menus" >
+                <router-link v-if="menu.url" :to="resolvePath(menu)">
+                    <el-menu-item :index=menu.path :class="{'submenu-title-noDropdown':true}">
+                        <svg-icon :icon-class=menu.icon />
+                        <span slot="title">{{menu.name}}</span>
+                    </el-menu-item>
+                    <!--<el-menu-item v-else-if="roleId == 1" :index=menu.name :class="{'submenu-title-noDropdown':true}">-->
+                        <!--<svg-icon :icon-class=menu.icon />-->
+                        <!--<span slot="title">{{menu.name}}</span>-->
+                    <!--</el-menu-item>-->
+                </router-link>
+
+                <template v-else>
+                    <el-submenu :index=menu.name>
+                        <template slot="title">
+                            <svg-icon :icon-class=menu.icon />
+                            <span slot="title">{{menu.name}}</span>
+                        </template>
+
+                        <template v-for="(submenu, subindex) in menu.submenuList">
+                            <router-link :to="resolvePath(submenu)">
+                                <el-menu-item :index=submenu.path>{{submenu.name}}</el-menu-item>
+                            </router-link>
+                        </template>
+                    </el-submenu>
+                </template>
+            </template>
+
+            <!--<sidebar-item v-for="route in permission_routers" :key="route.name" :item="route" :base-path="route.path"></sidebar-item>-->
+        </el-menu>
+    </el-scrollbar>
+</template>
+
+<script>
+    import {mapGetters} from 'vuex'
+    import SidebarItem from './SidebarItem'
+    import {Utils} from '../../../../plugins/utils'
+
+    export default {
+        components: {SidebarItem},
+        computed: {
+            ...mapGetters([
+                'menuList',
+                'sidebar',
+                'userType'
+            ]),
+            isCollapse() {
+                return !this.sidebar.opened
+            }
+        },
+        data() {
+            return {
+                ut: new Utils(),
+                defaultIndex: '',
+                menuIndex:{path:'/dashboard',name:'桌面',icon:'dashboard'},
+                menus:[]
+            }
+        },
+        methods:{
+            resolvePath(menu) {
+                if(this.ut.isEmpty(menu.path)){
+                    return '';
+                }
+                return menu.path;
+            },
+        },
+        watch:{
+            $route(){
+                let {path} = this.$route
+                this.defaultIndex = path
+            }
+        },
+
+        mounted() {
+            let _self = this;
+            _self.from = _self.$route.query.from;
+            if (_self.from == 'login') {
+               _self.defaultIndex = '/dashboard';
+            }
+
+            if (this.userType==1||this.userType==3){
+                // 由于平台不是企业，所以平台管理员和账号登录进去后不需要5G消息业务相关的信息：包括：“消息推送、媒体管理、资源管理、通讯录群组、上行消息、消息管理”这几个功能点；
+                // let mIDs = [1000,2000,3000,4000,1500,1600]
+				 let mIDs = [1000,2000,3000,4000,7000,8000]
+                let menus = JSON.parse(JSON.stringify(this.menuList))
+
+                this.menus = menus.filter(val=>{
+                    return !mIDs.includes(val.mId)
+                })
+            } else{
+                this.menus = this.menuList
+            }
+        },
+
+    }
+</script>
+<style lang="less">
+</style>

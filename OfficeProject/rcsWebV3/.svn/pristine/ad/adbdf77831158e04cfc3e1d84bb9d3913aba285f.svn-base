@@ -1,0 +1,366 @@
+<template>
+    <section class="info-statistics wrap-container">
+
+        <el-tabs v-model="tabType">
+
+            <el-tab-pane label="按用户查询" name="1">
+
+                <el-form :inline="true" :model="infoSearch" size="small">
+                    <el-form-item label="手机">
+                        <el-input v-model="infoSearch.address" placeholder="请输入手机"></el-input>
+                    </el-form-item>
+                    <el-form-item label="起止时间">
+                        <el-date-picker
+                            v-model="infoSearch.queryTime"
+                            type="daterange"
+                            :editable="false"
+                            value-format="yyyy-MM-dd"
+                            range-separator="至"
+                            start-placeholder="开始日期"
+                            end-placeholder="结束日期">
+                        </el-date-picker>
+                    </el-form-item>
+
+
+                    <el-form-item>
+                        <el-button  type="primary" @click="search()" icon="el-icon-search">查询</el-button>
+                        <el-button  type="primary" @click="exportExcel">导出</el-button>
+                    </el-form-item>
+                </el-form>
+
+
+                <section>
+                    <!--<el-button  @click="deleteTemp" size="mini" style="margin-bottom: 10px">删除</el-button>-->
+                    <el-table :data="infoList" fit v-loading="tableLoading" size="small" border
+                              ref="multiplePushTable"
+                              :header-cell-style="{'background-color': '#fafafa'}">
+                        <el-table-column
+                            label="序号"
+                            type="index"
+                            width="50">
+                        </el-table-column>
+                        <el-table-column prop="address" label="手机号码" align="center"></el-table-column>
+
+                        <el-table-column prop="type" label="操作类型" align="center">
+                            <template slot-scope="scope">
+                                {{moaoName[scope.row.type]}}
+                            </template>
+                        </el-table-column>
+
+                        <el-table-column prop="mediaType" label="操作内容" align="center">
+                            <template slot-scope="scope">
+                                {{typeName[scope.row.mediaType]}}
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="createTime" label="操作详情" align="center"></el-table-column>
+
+
+                    </el-table>
+                </section>
+
+                <!-- 页码区 -->
+                <div class="page-wrap">
+                    <el-pagination
+                        @size-change="handleSizeChange"
+                        @current-change="handleCurrentChange"
+                        :current-page="page[0].current"
+                        :page-sizes="[10, 20, 50, 200, 500]"
+                        :page-size="page[0].size"
+                        layout="total, sizes, prev, pager, next, jumper"
+                        :total="page[0].total">
+                    </el-pagination>
+                </div>
+
+            </el-tab-pane>
+
+            <!-- ///////////// -->
+
+            <el-tab-pane label="按内容查询" name="2">
+
+                <el-form :inline="true" :model="infoSearch" size="small">
+                    <el-form-item label="媒体名称">
+                        <el-input placeholder="请输入媒体名称"></el-input>
+                    </el-form-item>
+                    <el-form-item label="起止时间">
+                        <el-date-picker
+                            v-model="infoSearch.queryTime"
+                            type="daterange"
+                            :editable="false"
+                            value-format="yyyy-MM-dd"
+                            range-separator="至"
+                            start-placeholder="开始日期"
+                            end-placeholder="结束日期">
+                        </el-date-picker>
+                    </el-form-item>
+
+
+                    <el-form-item>
+                        <el-button  type="primary" @click="changeTab()" icon="el-icon-search">查询</el-button>
+                        <el-button  type="primary" @click="exportExcel">导出</el-button>
+                    </el-form-item>
+                </el-form>
+
+
+                <section>
+                    <!--<el-button  @click="deleteTemp" size="mini" style="margin-bottom: 10px">删除</el-button>-->
+                    <el-table :data="dataList2" fit v-loading="tableLoading" size="small" border
+                              ref="multiplePushTable"
+                              :header-cell-style="{'background-color': '#fafafa'}">
+                        <!--<el-table-column-->
+                            <!--type="selection"-->
+                            <!--width="45">-->
+                        <!--</el-table-column>-->
+                        <el-table-column
+                            label="序号"
+                            type="index"
+                            width="50">
+                        </el-table-column>
+                        <el-table-column prop="name" label="媒体名称" align="center"></el-table-column>
+
+                        <el-table-column prop="createTime" label="媒体生成时间" align="center"></el-table-column>
+                        <el-table-column label="操作" align="center">
+                            <template slot-scope="scope">
+                                <el-button type="text" size="small" @click="mediaQuery(scope.row)">查询</el-button>
+                            </template>
+                        </el-table-column>
+
+
+                    </el-table>
+                </section>
+
+                <!-- 页码区 -->
+                <div class="page-wrap">
+                    <el-pagination
+                        @size-change="handleSizeChange"
+                        @current-change="handleCurrentChange"
+                        :current-page="page[1].current"
+                        :page-sizes="[10, 20, 50, 200, 500]"
+                        :page-size="page[1].size"
+                        layout="total, sizes, prev, pager, next, jumper"
+                        :total="page[1].total">
+                    </el-pagination>
+                </div>
+
+
+                <el-dialog
+                    class="push-detail-dialog"
+                    title="详情"
+                    :visible.sync="dialogVisible"
+                    width="800px"
+                    center
+                    :close-on-click-modal="false">
+
+                    <el-form :inline="true" :model="infoSearch" size="small">
+                        <el-form-item label="起止时间">
+                            <el-date-picker
+                                v-model="infoSearch.queryTime"
+                                type="daterange"
+                                :editable="false"
+                                value-format="yyyy-MM-dd"
+                                range-separator="至"
+                                start-placeholder="开始日期"
+                                end-placeholder="结束日期">
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-form>
+
+                    <section>
+                        <chart ref="dataChart1" :options="option1" :auto-resize="true" style="width: 100%;"></chart>
+                    </section>
+
+                    <section>
+                        <chart ref="dataChart2" :options="option2" :auto-resize="true" style="width: 100%;"></chart>
+                    </section>
+
+                </el-dialog>
+
+            </el-tab-pane>
+
+        </el-tabs>
+
+    </section>
+</template>
+
+<script>
+    import {getMessageQueryStatistics} from '../../api/api'
+
+    export default {
+        name: "InfoStatistics",
+        components: {},
+        data() {
+            return {
+                page:[
+                    { //页码区
+                        current:1,
+                        size:10,
+                        total:0,
+                    },
+                    { //页码区
+                        current:1,
+                        size:10,
+                        total:0,
+                    }
+
+                ],
+                tableLoading:false,
+                infoSearch:{},
+                tabType: "1",
+                infoList:[],
+                typeName: ['','文本','图片','音频','视频','卡片','文件'],
+                moaoName: ['下行','上行'],
+                dataList2:[
+                    {
+                        name:'单卡片',
+                        createTime:'2020-08-28 11:12'
+                    }
+                ],
+                dialogVisible:false,
+
+
+                option1: {
+                    // color: ['#409eff'],
+                    title: {
+                        text: '以天为单位统计点击次数',
+                        left: 'center'
+                    },
+                    tooltip: {},
+                    // legend: {
+                    //     data:['点击数']
+                    // },
+                    xAxis: {
+                        data: ["2020-08-21","2020-08-22","2020-08-23","2020-08-24","2020-08-25","2020-08-26","2020-08-27"]
+                    },
+                    yAxis: {},
+                    series: [{
+                        name: '点击数',
+                        type: 'bar',
+                        data: [5, 20, 36, 10, 10, 20,120],
+                    }]
+                },
+                option2: {
+                    title: {
+                        text: '点击次数占比',
+                        left: 'center'
+                    },
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: '{b} :  ({d}%)'
+                    },
+                    legend: {
+                        data: []
+                    },
+                    series: [
+                        {
+                            name: '',
+                            type: 'pie',
+                            radius: '60%',
+                            center: ['50%', '45%'],
+                            data: [
+                                {value: 335, name: '点击1次人数占比'},
+                                {value: 310, name: '点击2次人数占比'},
+                                {value: 234, name: '点击3次人数占比'},
+                                {value: 135, name: '点击其他次数人数占比'}
+                            ],
+                            emphasis: {
+                                itemStyle: {
+                                    shadowBlur: 10,
+                                    shadowOffsetX: 0,
+                                    shadowColor: 'rgba(0, 0, 0, 0.5)'
+                                }
+                            }
+                        }
+                    ]
+                },
+            }
+        },
+        methods: {
+            handleCurrentChange:function (currentPage) { //改变当前页
+                let tabType = Number(this.tabType)
+                this.page[tabType-1].current = currentPage
+                this.loadData()
+            },
+            handleSizeChange: function (size) { //改变页面size
+                let tabType = Number(this.tabType)
+                this.page[tabType-1].size = size;
+                this.loadData()
+            },
+            loadData(){
+                if (this.tabType==1){
+                    // 按用户查询
+
+                    let arr = this.infoSearch.queryTime
+                    if (arr){
+                        this.infoSearch.startTime = arr[0]
+                        this.infoSearch.endTime = arr[1]
+                    }
+
+                    let tabType = Number(this.tabType)
+                    let page = this.page[tabType-1]
+
+                    this.infoSearch.current = page.current
+                    this.infoSearch.size = page.size
+                    this.tableLoading = true
+                    getMessageQueryStatistics(this.infoSearch).then(rsp=>{
+                        this.tableLoading = false
+                        console.log(rsp)
+                        if (rsp.success) {
+                            this.infoList = rsp.data.records;
+                            page.total = rsp.data.total
+                        } else {
+                            this.$message.error(rsp.message);
+                        }
+                    })
+
+
+                } else if (this.tabType==2){
+                    // 按内容查询
+
+                }
+            },
+            search(){
+                this.loadData()
+            },
+            mediaQuery(row){
+                this.dialogVisible = true
+            },
+            exportExcel(){
+
+            }
+        },
+        mounted() {
+
+        },
+        activated() {
+            // this.loadData()
+            let tableHeight = document.documentElement.clientHeight - 50 - 50 - 40 - 55 -
+                51 - 60 - 47 +
+                'px'
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = tableHeight
+            document.getElementsByClassName('el-table__body-wrapper')[1].style.height = tableHeight
+        }
+    }
+</script>
+
+<style scoped lang="less">
+    .info-statistics{
+        .el-table__body-wrapper{
+            overflow: auto;
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 4px;
+            }
+            
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+            
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+    }
+</style>

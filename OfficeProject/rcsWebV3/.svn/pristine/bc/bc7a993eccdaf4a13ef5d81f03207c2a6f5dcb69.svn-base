@@ -1,0 +1,160 @@
+<template>
+    <section class="mms-template wrap-container">
+        <el-form :inline="true" :model="params" size="small">
+            <el-form-item label='标题'>
+                <el-input v-model="params.subject" placeholder="请输入标题"></el-input>
+            </el-form-item>
+            <el-form-item label='产品名称'>
+                <el-input v-model="params.productName" placeholder="请输入产品名称"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="" icon="el-icon-search">查询</el-button>
+            </el-form-item>
+        </el-form>
+
+        <section>
+            <el-button @click="delTemplate" size="mini" style="margin-bottom: 10px" v-if="scene==1">删除</el-button>
+            <el-table :data="templateList" fit v-loading="tableLoading" size="small" border ref="multiplePushTable"
+                @selection-change="handleSelectionChange" :highlight-current-row="scene == 2?true:false"
+                @current-change="mmsCurrentChange" :header-cell-style="{'background-color': '#fafafa'}">
+                <el-table-column type="selection" width="45" v-if="scene == 1">
+                </el-table-column>
+                <el-table-column prop="productId" label="产品Id" align="center"></el-table-column>
+                <el-table-column prop="mmsId" label="消息Id" align="center"></el-table-column>
+                <el-table-column prop="subject" label="标题" align="center"></el-table-column>
+                <el-table-column prop="creator" label="创建人" align="center"></el-table-column>
+                <el-table-column prop="creatTime" label="创建时间" align="center"></el-table-column>
+                <el-table-column prop="auditTime" label="审核时间" align="center"></el-table-column>
+                <el-table-column prop="productName" label="产品名称" align="center"></el-table-column>
+                <!-- <el-table-column label="操作" align="center">
+                    <template slot-scope="scope">
+                        <el-button type="text" size="small" @click="">查看明细</el-button>
+                    </template>
+                </el-table-column> -->
+            </el-table>
+        </section>
+
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                :current-page="param.current" :page-sizes="[10, 15, 20, 30]" :page-size="param.size"
+                layout="total, sizes, prev, pager, next, jumper" :total="param.total">
+            </el-pagination>
+        </div>
+
+        <div class="mms-dialog-footer" align="center" v-if="scene == 2">
+            <el-button @click="mmsCancelOrOk('cancel')">取 消</el-button>
+            <el-button type="primary" @click="mmsCancelOrOk('ok')">确 定</el-button>
+        </div>
+    </section>
+</template>
+
+<script>
+    import {
+        getMmsTemplateList
+    } from '../../api/api'
+
+    export default {
+        name: "MmsTemplateManage",
+        props: {
+            scene: {
+                default: 1 //1是普通 2是组件
+            }
+        },
+        data() {
+            return {
+                params: {},
+                templateList: [],
+                tableLoading: false,
+                param: {
+                    current: 1,
+                    size: 10,
+                    total: 0,
+                }, // 分页
+                multipleSelection: [],
+                mmsDialogFlag: false
+            }
+        },
+        methods: {
+            //组件---确定数据以及取消
+            mmsCancelOrOk(dialogType) {
+                if (dialogType == 'cancel') {
+                    this.$emit('mmsContentInfo', dialogType, this.mmsDialogFlag)
+                }
+            },
+            //改变页面size
+            handleSizeChange(size) {
+                this.param.size = size
+                this.loadData()
+            },
+            //改变当前页
+            handleCurrentChange(currentPage) {
+                this.param.current = currentPage
+                this.loadData()
+            },
+            //组件的时候单选
+            mmsCurrentChange(val) {
+                if(this.scene == 2){
+                    this.$emit('mmsContentInfo','ok',this.mmsDialogFlag,val)
+                }
+            },
+            //普通模式复选框 多选
+            handleSelectionChange(val) {
+                this.multipleSelection = val;
+            },
+            //删除
+            delTemplate() {
+
+            },
+            //初始化数据
+            loadData() {
+                Object.assign(this.param, this.params)
+                getMmsTemplateList(this.param).then(res => {
+                    this.templateList = res.data.records
+                    this.param.total = res.data.total
+                })
+            }
+        },
+        mounted() {
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 84 - 40 - 52 - 38 - 41 - 47 + 'px'
+            this.loadData()
+        },
+        activated() {
+            this.loadData()
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 84 - 40 - 52 - 38 - 41 - 47 + 'px'
+        }
+    }
+</script>
+
+<style lang="less">
+    .mms-template {
+        .mms-dialog-footer {
+            margin-top: 15px;
+        }
+
+        .el-table__body-wrapper {
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+    }
+</style>

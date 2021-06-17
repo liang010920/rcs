@@ -1,0 +1,608 @@
+<template>
+    <section class="member-manage wrap-container customer">
+        <div style="display: flex;">
+            <div :style="{height:scrollHeight}" class="typeGroup">
+                <div>
+                    <el-button :type="selectGroupIndex == -1 ? 'primary':''" size="small" class="allGroup" @click="selectAllGroup">全部 ({{selectAllGroupIndex}})</el-button>
+                    <div :key="'item'+index" v-for="(item,index) in groupList">
+                        <el-input v-show='index == groupInputIndex' class="input-new" ref="saveButtonInput" size="small" v-model="inputValue"
+                            @keyup.enter.native="handleInputConfirm(item)" @blur="handleInputConfirm(item)"></el-input>
+                        <el-button v-show='index != groupInputIndex' size="small" :type="index == selectGroupIndex ? 'primary':''" class="button-new"  @click="selectGroup(item,index)">
+                            {{item.name}} ({{item.itemCount}})
+                            <span v-show="item.name != '未分组'" class="groupEdit">
+                                <span class="el-icon-edit" @click="showGroupInput(item.name,index)"></span>
+                                <span class="el-icon-delete" @click="handleClose(item.id)"></span>
+                            </span>
+                        </el-button>
+                    </div>
+                    <el-input class="input-new-tag" v-if="inputVisible" v-model="inputValue" ref="saveTagInput" size="small"
+                        @keyup.enter.native="handleInputConfirm" @blur="handleInputConfirm">
+                    </el-input>
+                    <el-button v-else class="button-new-tag" size="small" @click="showInput">+ 添加分组</el-button>
+                </div>
+            </div>
+            <div style="flex:1">
+                <el-form :inline="true" size="small">
+                    <el-form-item label="客户名称">
+                        <el-input clearable v-model="params.custName" placeholder="输入客户名称搜索"></el-input>
+                    </el-form-item>
+                    <el-form-item label="登录账号">
+                        <el-input clearable v-model="params.userName" placeholder="输入登录账号搜索"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" @click="search" icon="el-icon-search">查询</el-button>
+                        <el-button type="primary" @click="addMember">新增客户</el-button>
+                    </el-form-item>
+                </el-form>
+
+                <section class="data-main">
+                    <div class="left">
+                        <el-table :data="memberList" fit v-loading="tableLoading" size="small" border :header-cell-style="{'background-color': '#fafafa'}">
+                            <el-table-column prop="custCode" label="客户编码" align="center"></el-table-column>
+                            <el-table-column prop="custName" label="客户名称" align="center"></el-table-column>
+                            <el-table-column prop="userName" label="登录账号" align="center"></el-table-column>
+                            <!--<el-table-column label="手机" align="center">-->
+                            <!--<template slot-scope="scope">-->
+                            <!--{{scope.row.customer.mobile}}-->
+                            <!--</template>-->
+                            <!--</el-table-column>-->
+                            <!--<el-table-column prop="group" label="所属分组" align="center">-->
+                            <!--<template slot-scope="scope">-->
+                            <!--{{scope.row.customer.groupId}}-->
+                            <!--</template>-->
+                            <!--</el-table-column>-->
+
+
+                            <!-- <el-table-column prop="roleId" label="角色" align="center">
+                                <template slot-scope="scope">
+                                    {{roleMap[scope.row.roleId]}}
+                                </template>
+                            </el-table-column> -->
+
+                            <!--<el-table-column prop="modifyTime" label="编辑日期" align="center">-->
+                            <!--<template slot-scope="scope">-->
+                            <!--{{scope.row.customer.modifyTime}}-->
+                            <!--</template>-->
+                            <!--</el-table-column>-->
+                            <el-table-column prop="runState" label="状态" align="center">
+                                <template slot-scope="scope">
+                                    {{scope.row.runState==1?'已启用':'已停用'}}
+                                </template>
+                            </el-table-column>
+                            <!-- 操作区 -->
+                            <el-table-column label="操作" align="center" width="200">
+                                <template slot-scope="scope">
+                                    <el-button type="text" size="small" @click="resetPwd(scope.row)">重置密码</el-button>
+                                    <el-button type="text" size="small" @click="toDetail(scope.row)">编辑</el-button>
+                                    <el-button type="text" size="small" @click="stopMember(scope.row)">{{scope.row.runState==0?'启用':'停用'}}</el-button>
+                                    <el-button type="text" size="small" @click="deleteMember(scope.row)">删除</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+            <!--<div class="right">-->
+            <!--<div class="head">-->
+            <!--<span>分组</span>-->
+            <!--<span>-->
+
+            <!--<el-popover-->
+            <!--placement="bottom"-->
+            <!--width="200"-->
+            <!--v-model="popVisible">-->
+            <!--&lt;!&ndash;<div >&ndash;&gt;-->
+            <!--&lt;!&ndash;新建分组&ndash;&gt;-->
+            <!--&lt;!&ndash;</div>&ndash;&gt;-->
+            <!--<div style="padding: 10px 0 15px 0">-->
+            <!--<el-input size="mini" v-model="groupName" placeholder="请输入分组名称"></el-input>-->
+            <!--</div>-->
+
+            <!--<div style="text-align: right; margin: 0">-->
+            <!--<el-button size="mini" type="text" @click="popVisible = false">取消</el-button>-->
+            <!--<el-button type="primary" size="mini" @click="popVisible = false">确定</el-button>-->
+            <!--</div>-->
+            <!--<i class="el-icon-circle-plus-outline" slot="reference"></i>-->
+            <!--</el-popover>-->
+
+            <!--</span>-->
+            <!--</div>-->
+            <!--<ul class="theme-color-gray group">-->
+            <!--<li>全部(15)</li>-->
+            <!--<li>未分组(10)</li>-->
+            <!--<li>-->
+            <!--组1(1)-->
+            <!--<el-popconfirm-->
+            <!--class="res-pop-confirm"-->
+            <!--title="确定删除吗？"-->
+            <!--@onConfirm="deleteGroup(o)">-->
+            <!--<i slot="reference">删除</i>-->
+            <!--</el-popconfirm>-->
+            <!--</li>-->
+            <!--<li>-->
+            <!--&lt;!&ndash;<i class="el-icon-folder"></i>&ndash;&gt;-->
+            <!--组2(4)-->
+            <!--<el-popconfirm-->
+            <!--class="res-pop-confirm"-->
+            <!--title="确定删除吗？"-->
+            <!--@onConfirm="deleteGroup(o)">-->
+            <!--<i slot="reference">删除</i>-->
+            <!--</el-popconfirm>-->
+            <!--</li>-->
+            <!--</ul>-->
+            <!--</div>-->
+            <!-- 编辑区 -->
+            <el-dialog class="editCustomer" :title="editTitle" :visible.sync="editDialog" width="60%" :close-on-click-modal="false">
+                <add-member v-if="editDialog" @hideDialog="hideDialog" :selectGroupId="selectGroupId" :userId="userId" :classBool="classBool"></add-member>
+            </el-dialog>
+
+            <!-- 重置密码 -->
+            <el-dialog class="reset" title="重置密码" :visible.sync="resetPwdDialog" width="35%" :close-on-click-modal="false">
+                <el-form :model="ruleForm" status-icon :rules="rules" ref="ruleForm" label-width="100px" class="demo-ruleForm">
+                    <el-form-item label="新密码" prop="newPassword">
+                        <el-input type="password" v-model="ruleForm.newPassword" autocomplete="off" show-password></el-input>
+                    </el-form-item>
+                    <el-form-item label="确认新密码" prop="rePassword">
+                        <el-input type="password" v-model="ruleForm.rePassword" autocomplete="off" show-password></el-input>
+                    </el-form-item>
+                </el-form>
+                <span slot="footer" class="dialog-footer">
+                    <el-button @click="resetPwdDialog = false">取 消</el-button>
+                    <el-button type="primary" @click="submitPwd()">确 定</el-button>
+                </span>
+            </el-dialog>
+
+
+        <!-- 页码区 -->
+        <div class="page-wrap">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="page.curPage"
+                :page-sizes="[10, 15, 20, 30]" :page-size="page.size" layout="total, sizes, prev, pager, next, jumper"
+                :total="page.total">
+            </el-pagination>
+        </div>
+
+
+    </section>
+</template>
+
+<script>
+    import {
+        getCustomerList,
+        getRoleList,
+        delCustomer,
+        modCustomerState,
+        customerModPassword,
+        addGroup,
+        deleteGroup,
+        editGroup,
+        getGroupListAdditionCount,
+        getGroupItemCount
+    } from '../../api/api'
+    import AddMember from './AddCustomer'
+    export default {
+        name: "customerManage",
+        components: {
+            AddMember
+        },
+        data() {
+            var validatePass = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请输入密码'));
+                } else {
+                    if (this.ruleForm.rePassword !== '') {
+                        this.$refs.ruleForm.validateField('rePassword');
+                    }
+                    callback();
+                }
+            };
+            var validatePass2 = (rule, value, callback) => {
+                if (value === '') {
+                    callback(new Error('请再次输入密码'));
+                } else if (value !== this.ruleForm.newPassword) {
+                    callback(new Error('两次输入密码不一致!'));
+                } else {
+                    callback();
+                }
+            };
+            return {
+                classBool:true,
+                ruleForm: {
+                    customerId: '',
+                    newPassword: '',
+                    rePassword: ''
+                },
+                rules: {
+                    newPassword: [{
+                        validator: validatePass,
+                        trigger: 'blur'
+                    }],
+                    rePassword: [{
+                        validator: validatePass2,
+                        trigger: 'blur'
+                    }]
+                },
+                memberList: [],
+                params: {},
+                tableLoading: false,
+                page: {
+                    curPage: 1,
+                    size: 10,
+                    total: 0
+                }, // 传入后台参数
+                dialogForm: {},
+                popVisible: false,
+                groupName: '',
+                groupId: 0,
+                roleMap: {},
+                editDialog: false,
+                userId: 0,
+                editTitle: '',
+                resetPwdDialog: false,
+                scrollHeight: '',
+                groupList: [],
+                inputVisible: false,
+                inputValue: '',
+                groupId: 0,
+                groupName: '',
+                groupInputIndex: -1,
+                tableScrollHeight:'',
+                selectGroupIndex:-1,
+                selectAllGroupIndex:0,
+                selectGroupId:0,
+            }
+        },
+        methods: {
+            getGroupItemCount(){
+               getGroupItemCount({groupType:'CUSTOMER',groupId:0}).then(res=>{
+                    this.selectAllGroupIndex = res.code
+               })
+            },
+            getGroupListAdditionCount() {
+                getGroupListAdditionCount({groupType:'CUSTOMER'}).then(res => {
+                    this.groupList = res.data
+                })
+            },
+            selectAllGroup(){
+                this.selectGroupIndex = -1
+                this.groupId = 0
+                this.loadData()
+            },
+            selectGroup(item,index){
+                this.selectGroupIndex = index
+                this.groupId = item.id
+                this.loadData()
+            },
+
+            handleClose(id) {
+                this.$confirm('确定删除此分组吗，此操作不可恢复！', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    deleteGroup({
+                        groupId:id,
+                        groupType:'CUSTOMER'
+                    }).then(res => {
+                        if (res.success) {
+                            this.groupId = 0
+                            this.selectGroupIndex=-1
+                            this.getGroupItemCount()
+                            this.getGroupListAdditionCount()
+                            this.loadData()
+                            this.$message.success('删除成功')
+                            // this.groupList.splice(this.groupList.indexOf(tag.id), 1);
+                        }
+                    })
+                })
+            },
+
+            showInput() {
+                this.inputVisible = true;
+                this.$nextTick(_ => {
+                    this.$refs.saveTagInput.$refs.input.focus();
+                });
+            },
+
+            showGroupInput(name,index) {
+                this.groupInputIndex = index
+                this.inputValue = name
+                console.log('this.$refs.saveButtonInput[index].$refs:',this.$refs.saveButtonInput)
+                this.$nextTick(_ => {
+                    this.$refs.saveButtonInput[index].$refs.input.focus();
+                });
+            },
+
+            handleInputConfirm(tag) {
+                let inputValue = this.inputValue;
+                let groupId = tag.id
+                if (inputValue) {
+                    if (groupId == undefined) {
+                        addGroup({
+                            name: inputValue,
+                            groupType:'CUSTOMER'
+                        }).then(res => {
+                            if (res.success) {
+								this.getGroupItemCount()
+                                this.getGroupListAdditionCount()
+                                this.loadData()
+                                this.$message.success('新增成功')
+                            }
+                        })
+                    } else {
+                        editGroup({
+                            groupId:groupId,
+                            name: inputValue,
+                            groupType:'CUSTOMER'
+                        }).then(res => {
+                            if (res.success) {
+								this.getGroupItemCount()
+                                this.getGroupListAdditionCount()
+                                this.loadData()
+                                this.$message.success('修改成功')
+                            }
+                        })
+                    }
+                }
+
+                this.inputVisible = false;
+                this.groupInputIndex = -1;
+                this.inputValue = '';
+            },
+            handleCurrentChange: function(currentPage) { //改变当前页
+                this.page.curPage = currentPage
+                this.loadData()
+            },
+            handleSizeChange: function(size) { //改变页面size
+                this.page.size = size;
+                this.loadData()
+            },
+            addMember() {
+                // this.$router.push('/customerManage/addMember')
+                this.editDialog = true
+                this.userId = 0
+                this.editTitle = '新增客户'
+
+                this.selectGroupId = this.groupId
+                if(this.selectGroupId == 0){
+                    this.selectGroupId = this.groupList[0].id
+                }
+            },
+            search() {
+                this.loadData()
+            },
+            resetPwd(row) {
+                this.resetPwdDialog = true;
+                this.ruleForm.customerId = row.id.toString();
+                // console.log('row:---',row)
+            },
+            submitPwd() {
+                this.$refs.ruleForm.validate(valid => {
+                    if (valid) {
+                        customerModPassword(this.ruleForm).then(res => {
+                            if (res.success) {
+                                this.$message.success('密码重置成功')
+                                this.resetPwdDialog = false
+                            }
+                        })
+                    }
+                })
+            },
+            deleteGroup(group) {
+
+            },
+            toDetail(member) {
+                // this.$router.push('/customerManage/editMember?userId='+member.userId)
+                this.userId = member.id
+                this.editDialog = true
+                this.editTitle = '编辑客户'
+                // console.log('member:',member)
+                console.log('member.userId:', member.id)
+            },
+            deleteMember(member) {
+                this.$confirm('此操作将永久删除该客户, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    delCustomer({
+                        id: member.id
+                    }).then(rsp => {
+                        if (rsp.success) {
+                            this.$message({
+                                type: 'success',
+                                message: '删除成功!'
+                            });
+
+							this.getGroupItemCount()
+                            this.loadData()
+                            this.getGroupListAdditionCount()
+                        }
+                    })
+                }).catch(() => {});
+            },
+            stopMember(member) {
+                let param = {
+                    id: member.id
+                }
+                if (member.runState == 0) {
+                    param.runState = 1
+                } else {
+                    param.runState = 0
+                }
+                modCustomerState(param).then(resp => {
+                    if (resp.success) {
+                        this.$message({
+                            type: 'success',
+                            message: '操作成功!'
+                        });
+                        this.getGroupListAdditionCount()
+                        this.loadData()
+                    }
+                })
+            },
+            getRoleList() {
+                getRoleList({
+                    curPage: 1,
+                    size: 1000
+                }).then(rsp => {
+                    if (rsp.success) {
+                        this.getGroupListAdditionCount()
+                        rsp.data.forEach(val => {
+                            this.$set(this.roleMap, val.id, val.name)
+                        })
+                    }
+                })
+            },
+            loadData() {
+                let param = {
+                    curPage: this.page.curPage,
+                    size: this.page.size,
+                    groupId:this.groupId
+                }
+                Object.assign(param, this.params)
+                this.tableLoading = true
+                getCustomerList(param).then(rsp => {
+                    this.getGroupListAdditionCount()
+                    // console.log('member resp:',rsp.data.records)
+                    this.tableLoading = false
+                    this.memberList = rsp.data.records
+                    this.page.total = rsp.data.total
+                })
+            },
+            hideDialog() {
+                this.editDialog = false
+                this.loadData()
+                this.getGroupItemCount()
+                this.getGroupListAdditionCount()
+            }
+        },
+        activated() {
+            // this.loadData()
+        },
+        mounted() {
+            this.loadData()
+            this.getGroupItemCount()
+            this.getGroupListAdditionCount()
+            this.getRoleList()
+            this.scrollHeight = document.documentElement.clientHeight - 50 - 50 - 40 - 32 - 15  + 'px'
+        }
+    }
+</script>
+
+<style scoped lang="less">
+
+    .member-manage {
+        .typeGroup {
+            width: 200px;
+            margin-right: 15px;
+            overflow: auto;
+            .allGroup{
+                margin-bottom: 18px;
+                text-align: left;
+                width: 100%;
+            }
+            .el-button+.el-button{
+                margin-left: 0;
+            }
+            .button-new {
+                margin-bottom: 10px;
+                position: relative;
+                text-align: left;
+                width: 100%;
+
+                .groupEdit {
+                    cursor: pointer;
+                    position: absolute;
+                    right: 10px;
+                    top: 7px;
+
+                    .el-icon-edit {
+                        border-radius: 100%;
+                        padding: 3px;
+
+                        &:hover {
+                            background-color: #ccc;
+                            color: #fff
+                        }
+                    }
+
+                    .el-icon-delete {
+                        border-radius: 100%;
+                        padding: 3px;
+
+                        &:hover {
+                            background-color: #ccc;
+                            color: #fff
+                        }
+                    }
+                }
+            }
+
+            .input-new {
+                margin-bottom: 10px;
+                text-align: left;
+            }
+
+            .button-new-tag {
+                height: 32px;
+                line-height: 30px;
+                padding-top: 0;
+                padding-bottom: 0;
+                width: 100%
+            }
+
+            .input-new-tag {
+                width: 90px;
+                vertical-align: bottom;
+                width: 100%
+            }
+        }
+        .data-main {
+            display: flex;
+
+            .left {
+                flex: 1;
+            }
+
+            .right {
+                width: 300px;
+                padding: 10px 15px;
+                margin-left: 20px;
+                border: 1px solid #e1e1e1;
+
+                .head {
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 15px;
+
+                    &>span:last-child {
+                        margin-top: -5px;
+                        font-size: 20px;
+                        color: #409eff;
+                        cursor: pointer;
+                    }
+                }
+
+                ul {
+                    padding-left: 10px;
+
+                    li {
+                        display: flex;
+                        justify-content: space-between;
+                        padding: 5px 0;
+                        cursor: pointer;
+
+                        i {
+                            font-size: 12px;
+                            color: #409eff;
+                        }
+
+                    }
+                }
+
+            }
+        }
+    }
+</style>

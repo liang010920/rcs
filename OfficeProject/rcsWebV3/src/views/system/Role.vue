@@ -1,0 +1,295 @@
+<template>
+    <section class="role-manage wrap-container">
+        <el-button style="margin-bottom: 18px" type="primary" size="small" @click="addRole">添加角色</el-button>
+        <!-- 列表区 -->
+        <el-table :data="roleList" fit v-loading="tableLoading" size="small" border
+            :header-cell-style="{'background-color': '#fafafa'}">
+            <el-table-column prop="name" label="角色名称" align="center"></el-table-column>
+            <el-table-column prop="createTime" label="添加时间" align="center"></el-table-column>
+
+            <!-- 操作区 -->
+            <el-table-column label="操作" align="center">
+                <template slot-scope="scope">
+                    <el-button type="text" size="small" @click="editRole(1,scope.row)">编辑</el-button>
+                    <el-button type="text" size="small" @click="editRole(2,scope.row)">删除</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        <!-- 页码区 -->
+        <!-- <div class="page-wrap">
+            <el-pagination
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+                :current-page="page.current"
+                :page-sizes="[10, 15, 20, 30]"
+                :page-size="page.size"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="page.total">
+            </el-pagination>
+        </div> -->
+        <!-- <quill-editor ref="myTextEditor" v-model="content" :options="editorOption" style="height:600px;"></quill-editor> -->
+        <!-- 编辑区 -->
+        <el-dialog :title="operationTips" :visible.sync="editDialog" width="35%" class="role-Manage-dialog"
+            :close-on-click-modal="false">
+            <!-- 添加时才显示 -->
+            <el-input size="small" v-model="roleModel.name" placeholder="请输入角色名称"></el-input>
+
+            <el-tree :data="menuTree" :props="selfProps" :default-checked-keys="ownMenu" show-checkbox node-key="mId"
+                ref="menuTree"></el-tree>
+
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="editDialog = false">取 消</el-button>
+                <el-button type="primary" @click="saveRole()">确 定</el-button>
+            </span>
+        </el-dialog>
+    </section>
+</template>
+
+<script>
+    import {
+        getRoleList,
+        addRole,
+        delRole,
+        modRole
+    } from '../../api/api.js'
+    import {
+        mapGetters
+    } from 'vuex'
+    export default {
+        data() {
+            return {
+                // content: '',
+                // editorOption: {
+                //     placeholder: '编辑文章内容'
+                // },
+                editDialog: false, //对话框显示标记
+                tableLoading: false,
+                roleList: [], //角色列表
+                // roleTypes:[//角色类型，1平台级管理员 2供应商 3推广员 4普通用户 5 供应商员工
+                //     {
+                //         value: 1,
+                //         label: '平台管理员'
+                //     },
+                //     {
+                //         value: 2,
+                //         label: '供应商'
+                //     },
+                //     {
+                //         value: 5,
+                //         label: '供应商员工'
+                //     }
+                // ],
+                menuTree: [], //菜单树
+                ownMenu: [], //角色拥有的菜单树
+                selfProps: { //自定义标签
+                    label: 'name',
+                    children: 'submenuList'
+                },
+                roleModel: {
+                    name: ''
+                }, //编辑实体
+                operationTips: '角色权限设置',
+                operationType: Number, //1 权限 2 删除
+                page: { //页码区
+                    curPage: 1,
+                    size: 10,
+                    total: 0,
+                },
+            }
+        },
+        computed: {
+            ...mapGetters([
+                'menuList',
+            ]),
+        },
+        methods: {
+            onEditorChange({
+                editor,
+                html,
+                text
+            }) {
+                this.content = html;
+            },
+            handleCurrentChange(currentPage) { //改变当前页
+                let _self = this
+                _self.page.current = currentPage
+                _self.loadAccount()
+            },
+            handleSizeChange(size) { //改变页面size
+                let _self = this
+                _self.page.size = size;
+                _self.loadAccount()
+            },
+            addRole() { //添加角色
+                let _self = this
+                _self.ownMenu = [] //初始化
+                _self.roleModel = {} //初始化
+                _self.editDialog = true
+                _self.operationTips = '添加角色'
+                _self.operationType = 0;
+                _self.getMenuTree()
+            },
+            editRole(type, row) { //编辑、删除
+                let _self = this
+                _self.operationTips = '角色权限设置'
+                _self.roleModel.roleId = row.id //记录要修改的角色
+                _self.roleModel.name = row.name
+                _self.operationType = type
+                if (_self.operationType == 1) { //编辑
+                    _self.editDialog = true
+
+                    // 当前选的权限id
+                    _self.ownMenu = _self.$getLeafMenuIdsByMenuJson(row.permission)
+                    console.log(' _self.ownMenu', _self.ownMenu)
+
+                    _self.getMenuTree()
+                } else if (_self.operationType == 2) { //删除
+                    _self.$confirm('删除角色后，已经关联角色的所有账号将无法正常使用!<p style="">确定要删除角色吗？</p>', '删除确认', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        dangerouslyUseHTMLString: true,
+                        type: 'warning'
+                    }).then(() => {
+                        _self.roleModel.status = 0 //删除
+                        _self.delRole(row.id)
+                    }).catch(() => {
+                        //取消
+                    });
+                }
+            },
+            getMenuTree() { //得到超管的树结构
+                let _self = this
+                // roleDetail({roleId:1}).then(function (rsp) {
+                //     if (rsp.success) {
+                //         let menuJson = JSON.parse(rsp.data.menuJson)
+                //         _self.menuTree = menuJson.menuList
+                //     } else {
+                //         _self.$message.error(rsp.message);
+                //     }
+                // })
+
+                this.menuTree = JSON.parse(JSON.stringify(this.menuList))
+            },
+            delRole(id) {
+                delRole({
+                    roleId: id
+                }).then(rsp => {
+                    if (rsp.success) {
+                        this.editDialog = false
+                        this.$message.success('删除成功');
+                        this.loadRole() //刷新
+                    } else {
+                        this.$message.error(rsp.message);
+                    }
+                })
+            },
+            saveRole() { //保存角色权限
+                let _self = this
+                if (!_self.roleModel.name) {
+                    _self.$message.error("角色名称不能为空");
+                    return
+                }
+                if (_self.operationType != 2) { //删除时不需要调用
+
+                    let checkedLeafNodes = _self.$refs.menuTree.getCheckedNodes(true)
+                    // 更新权限
+                    let menuList = _self.$getMenuListByCheckedNodes(checkedLeafNodes, _self.menuTree);
+                    _self.roleModel.permission = JSON.stringify(menuList)
+
+                }
+
+                if (_self.operationType == 0) { //增加
+                    addRole(_self.roleModel).then(function(rsp) {
+                        // console.log(rsp)
+                        if (rsp.success) {
+                            _self.editDialog = false
+                            _self.$message.success('添加成功');
+                            _self.loadRole() //刷新
+                        } else {
+                            _self.$message.error(rsp.message);
+                        }
+                    })
+                }
+                if (_self.operationType == 1) { //修改
+                    modRole(_self.roleModel).then(rsp => {
+                        if (rsp.success) {
+                            _self.editDialog = false
+                            _self.$message.success('修改成功');
+                            _self.loadRole() //刷新
+                        } else {
+                            _self.$message.error(rsp.message);
+                        }
+                    })
+
+                } else if (_self.operationType == 2) { // 删除
+
+                }
+
+            },
+            loadRole: function() { //加载树
+                let _self = this
+                _self.tableLoading = true
+                //赋值后 在子组件内就可以延续之前的参数
+                getRoleList({
+                    curPage: _self.page.curPage,
+                    size: _self.page.size
+                }).then(function(rsp) {
+                    // console.log('roleList:',rsp)
+                    _self.tableLoading = false
+                    if (rsp.success) {
+                        // _self.roleList = rsp.data.records;
+                        // _self.roleList = rsp.data;
+                        _self.filterRoleList(rsp.data)
+                        _self.page.total = rsp.data.total
+                    } else {
+                        _self.$message.error(rsp.message);
+                    }
+                })
+            },
+            filterRoleList: function(roleList) {
+                this.roleList = roleList.filter(val => val.id != 1)
+            }
+        },
+        activated() {
+            this.loadRole();
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 50 - 40 - 51 - 60 - 47 + 'px'
+        }
+    }
+</script>
+<style lang="less">
+    .role-manage {
+        .el-input {
+            margin-bottom: 10px;
+        }
+
+        .el-pagination {
+            margin-top: 15px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .el-table__body-wrapper {
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+    }
+</style>

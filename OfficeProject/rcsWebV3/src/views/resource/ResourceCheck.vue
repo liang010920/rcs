@@ -1,0 +1,206 @@
+<template>
+    <section class="resource-check wrap-container">
+                <el-form :inline="true" :model="search" size="small">
+                    <el-form-item label="图片名称">
+                        <el-input v-model="search.name" placeholder="搜索图片"></el-input>
+                    </el-form-item>
+                    <el-form-item label="请选择chabot">
+                        <el-select v-model="search.chatbotId" placeholder="请选择">
+                            <el-option label="全部" :value="-1"></el-option>
+                            <el-option v-for="(item,index) in chatbotList" :key="'chatbotId'+index" :label="item.chatbotName"
+                                :value="item.id"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="审核状态">
+                        <el-select v-model="search.checkStatus" placeholder="请选择">
+                            <el-option label="全部" :value="-1"></el-option>
+                            <el-option label="待审核" :value="0"></el-option>
+                            <el-option label="审核通过" :value="1"></el-option>
+                            <el-option label="审核失败" :value="2"></el-option>
+                            <el-option label="审核中" :value="3"></el-option>
+                        </el-select>
+                    </el-form-item>
+
+                    <el-form-item>
+                        <el-button type="primary" @click="searchInfo" icon="el-icon-search">查询</el-button>
+                        <el-button type="primary" size="mini" @click="addCheck">新增审核</el-button>
+                    </el-form-item>
+                </el-form>
+        <div>
+            <el-button @click="delList" size="mini" style="margin-bottom: 10px">删除</el-button>
+        </div>
+        <el-tabs v-model="resourceType" @tab-click="handleClick">
+            <el-tab-pane label="图片" name="RESOURCE_IMAGE">
+                <resource-check-image ref="image"></resource-check-image>
+            </el-tab-pane>
+            <el-tab-pane label="音频" name="RESOURCE_AUDIO">
+                <resource-check-audio ref="audio"></resource-check-audio>
+            </el-tab-pane>
+            <el-tab-pane label="视频" name="RESOURCE_VIDEO">
+                <resource-check-video ref="video"></resource-check-video>
+            </el-tab-pane>
+            <!-- <el-tab-pane label="文档" name="RESOURCE_DOCMENT">
+
+            </el-tab-pane> -->
+        </el-tabs>
+
+
+        <!-- 新增审核 -->
+        <el-dialog title="新增审核" :visible.sync="dialogVisible" width="70%" class="checkHeight" center
+            :close-on-click-modal="false">
+            <resource-list v-if="dialogVisible" @selectRow="selectRow"></resource-list>
+        </el-dialog>
+    </section>
+</template>
+
+<script>
+    import ResourceCheckImage from './ResourceCheckImage.vue'
+    import ResourceCheckAudio from './ResourceCheckAudio.vue'
+    import ResourceCheckVideo from './ResourceCheckVideo.vue'
+    import resourceList from '../components/resCheck/index.vue'
+    import {
+        getPasswayList,
+        addResourceCheck,
+        getResourceCheckList,
+        delResourceCheck,
+    } from '../../api/api'
+    export default {
+        name: "ResourceCheck",
+        components: {
+            ResourceCheckImage,
+            ResourceCheckAudio,
+            ResourceCheckVideo,
+            resourceList
+        },
+        data() {
+            return {
+                resourceType: 'RESOURCE_IMAGE',
+                dialogVisible: false,
+                chatbotList: [],
+                search:{
+                    groupType:'RESOURCE_IMAGE',
+                    chatbotId:-1,
+                    checkStatus:-1
+                }
+            };
+        },
+        watch:{
+            resourceType(val){
+                this.search.groupType = val
+                if (this.resourceType == 'RESOURCE_IMAGE') {
+                    this.$refs.image.load()
+                }else if (this.resourceType == 'RESOURCE_AUDIO') {
+                    this.$refs.audio.load()
+                }else if (this.resourceType == 'RESOURCE_VIDEO') {
+                    this.$refs.video.load()
+                }
+            }
+        },
+        provide() {
+            return {
+                resParent: this
+            }
+        },
+        methods: {
+            searchInfo(){
+                if (this.resourceType == 'RESOURCE_IMAGE') {
+                    this.$refs.image.load()
+                }else if (this.resourceType == 'RESOURCE_AUDIO') {
+                    this.$refs.audio.load()
+                }else if (this.resourceType == 'RESOURCE_VIDEO') {
+                    this.$refs.video.load()
+                }
+            },
+            delList() {
+                if (this.resourceType == 'RESOURCE_IMAGE') {
+                    this.$refs.image.delResourceCheck()
+                }else if (this.resourceType == 'RESOURCE_AUDIO') {
+                    this.$refs.audio.delResourceCheck()
+                }else if (this.resourceType == 'RESOURCE_VIDEO') {
+                    this.$refs.video.delResourceCheck()
+                }
+            },
+            addCheck() {
+                this.dialogVisible = true
+                this.getPasswayList()
+            },
+            getPasswayList() {
+                getPasswayList({
+                    curPage: 1,
+                    size: 1000,
+                    chatbotName: '',
+                    userId: ''
+                }).then(res => {
+                    this.chatbotList = res.data.records
+                    // this.params.chatbotId = this.chatbotList[0].id
+                })
+            },
+            handleClick(tab, event) {
+                // if (this.resourceType == 'RESOURCE_IMAGE') {
+                //     this.$refs.image.load()
+                // }else if (this.resourceType == 'RESOURCE_AUDIO') {
+                //     this.$refs.audio.load()
+                // }else if (this.resourceType == 'RESOURCE_VIDEO') {
+                //     this.$refs.video.load()
+                // }
+            },
+            selectRow(num,param, row) {
+                if (num == 0) {
+                    this.dialogVisible = false
+                } else {
+                    param.resIds = row.join()
+                    // Object.assign(param, this.params)
+                    addResourceCheck(param).then(res => {
+                        if (res.success) {
+                            this.$message.success('新增成功')
+                            this.dialogVisible = false
+                            if (this.resourceType == 'RESOURCE_IMAGE') {
+                                this.$refs.image.load()
+                            }else if (this.resourceType == 'RESOURCE_AUDIO') {
+                                this.$refs.audio.load()
+                            }else if (this.resourceType == 'RESOURCE_VIDEO') {
+                                this.$refs.video.load()
+                            }
+                        }
+                    })
+                }
+            },
+            getResourceCheckList(params, func) {
+                getResourceCheckList(params).then(res => {
+                    if (res.success) {
+                        func(res)
+                    } else {
+                        this.$message.error(rsp.message)
+                    }
+                })
+            },
+            delResourceCheck(params, func) {
+                delResourceCheck(params).then(res => {
+                    if (res.success) {
+                        this.$message.success("删除成功");
+                        func(res)
+                    } else {
+                        this.$message.error(rsp.message)
+                    }
+                })
+            }
+        },
+        activated() {
+            this.getPasswayList()
+        }
+    }
+</script>
+
+<style lang="less">
+    .resource-check {
+        .addResourceCheck {
+            text-align: right;
+            margin-bottom: 10px;
+        }
+
+        .addCheck {
+            padding: 0 50px;
+            margin-bottom: 10px;
+        }
+    }
+</style>

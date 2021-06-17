@@ -1,0 +1,330 @@
+<template>
+    <section class="preview-resource">
+        <div class="preview">
+            <div class="mobile-header"></div>
+            <div class="mobile-main scrollbar">
+                <!-- <div class="title-m">
+                    <img :src="logoUrl | imgPath('customer')" alt="">
+                    <span>{{companyName}}</span>
+                </div> -->
+               <div class="mobile-content-height">
+                   <section class="card item-desc" v-show="type==5 || type=='TEMPLATE_CARD'">
+
+                       <swiper ref="mySwiper" :options="swiperOptions">
+                           <swiper-slide v-for="(item,index) in list" :key="'card'+index">
+                               <el-image
+                                   style="width: 267px;height: 172px;border-radius: 5px 5px 0 0"
+                                   :src="item.image | imgPath(typeObj[item.type])"
+                                   fit="cover"></el-image>
+                               <div class="desc">
+                                   <h3>{{item.name}}</h3>
+                                   <p class="scrollbar">{{item.text}}</p>
+                                   <div class="button" v-for="btn in item.buttons">{{btn.name}}</div>
+                               </div>
+                           </swiper-slide>
+                           <!--<div class="swiper-pagination" slot="pagination"></div>-->
+                       </swiper>
+
+                       <!--&lt;!&ndash;建议回复&ndash;&gt;-->
+                       <!--<swiper ref="mySwiper1" :options="swiperOptions1">-->
+                           <!--<swiper-slide v-for="(reply,i) in replyList" :key="'reply'+i" style="width: auto">-->
+                               <!--<span class="suggest">-->
+                                   <!--{{reply}}-->
+                               <!--</span>-->
+                           <!--</swiper-slide>-->
+                       <!--</swiper>-->
+
+
+                       <!--<el-carousel trigger="click" :autoplay="false" height="320px" :loop="true">-->
+                           <!--<el-carousel-item v-for="item in 2" :key="item">-->
+                               <!--<el-image-->
+                                   <!--style="width: 258px;height: 172px;border-radius: 5px 5px 0 0"-->
+                                   <!--src="https://shadow.elemecdn.com/app/element/hamburger.9cf7b091-55e9-11e9-a976-7f4d0b07eef6.png"-->
+                                   <!--fit="cover"></el-image>-->
+                               <!--<div class="desc">-->
+                                   <!--<h3>好吃的汉堡</h3>-->
+                                   <!--<p class="o-webkit-line2">大家都吃过快餐,店里的牛肉汉堡,但是有时候可能不知道他们是用什么肉做的,你可以完全自己在家里做这个汉堡,既简单又营养。</p>-->
+                                   <!--<div class="button">办理会员</div>-->
+                               <!--</div>-->
+                           <!--</el-carousel-item>-->
+                       <!--</el-carousel>-->
+                   </section>
+
+                   <section class="text item-desc" v-show="type==1 || type=='TEMPLATE_TEXT'">
+                       <div class="desc" v-for="(item,index) in list" :key="'text'+index">
+                           <h3>{{item.name}}</h3>
+                           <p>{{item.text}}</p>
+                       </div>
+                   </section>
+
+                   <section class="image item-desc" v-show="type==2 || type=='TEMPLATE_IMAGE'">
+                       <div class="desc" v-for="(item,index) in list" :key="'image'+index">
+                           <el-image
+                               style="width: 258px;height: 172px;border-radius: 5px 5px 0 0"
+                               :src="item.image | imgPath(typeObj[type])"
+                               fit="cover"></el-image>
+                           <h3>{{item.name}}</h3>
+                       </div>
+                   </section>
+
+                   <section class="audio item-desc" v-show="type==3 || type=='TEMPLATE_AUDIO'">
+                       <aplayer v-for="(item,index) in list" :key="'audio'+index" :music="item.pic?item:music" loop="none" preload="metadata"/>
+                   </section>
+
+                   <section class="video item-desc" v-show="type==4 || type=='TEMPLATE_VIDEO'">
+                       <div class="desc" v-for="(item,index) in list" :key="'video'+index">
+                           <video width="100%" controls controlslist="nodownload nofullscreen" ref="video" disablePictureInPicture
+                                  :src="item.file | imgPath(typeObj[type])"
+                                  :poster="item.image | imgPath(typeObj[type])"
+                           ></video>
+                           <h3>{{item.name}}</h3>
+                       </div>
+                   </section>
+
+                   <section class="image item-desc" v-show="type==6 || type=='TEMPLATE_DOCMENT'">
+                       <div class="desc" v-for="(item,index) in list" :key="'image'+index">
+                           <p>{{item.file}}</p>
+                           <h3>{{item.name}}</h3>
+                       </div>
+                   </section>
+               </div>
+
+                <!--建议回复-->
+                <swiper ref="mySwiper1" :options="swiperOptions1">
+                    <swiper-slide v-for="(reply,i) in replyList" :key="'reply'+i" style="width: auto">
+                            <span class="suggest">
+                                {{reply.displayText}}
+                            </span>
+                    </swiper-slide>
+                </swiper>
+            </div>
+            <div class="mobile-footer"></div>
+        </div>
+    </section>
+</template>
+
+<script>
+    import { Swiper, SwiperSlide, directive } from 'vue-awesome-swiper'
+    import {getCustomer} from '../../api/api.js'
+    import 'swiper/css/swiper.css'
+    import Aplayer from 'vue-aplayer'
+    export default {
+        name: "PreviewResource",
+        components: {
+            Swiper,
+            SwiperSlide,
+            Aplayer
+        },
+        props:{
+            preData:{
+                type:Object,
+                default:function () {
+                    return {}
+                }
+            },
+            replyList:{
+                type:Array,
+                default:function () {
+                    return []
+                }
+
+            }
+        },
+        data() {
+            return {
+                typeObj:{'1':'text','2':'image','3':'audio','4':'video','5':'image'},
+                swiperOptions: {
+                    pagination: {
+                        el: '.swiper-pagination'
+                    },
+                    // Some Swiper option/callback...
+                },
+                swiperOptions1:{
+                    slidesPerView: 'auto',
+                    freeMode: true,
+                    scrollbar: {
+                        el: '.swiper-scrollbar',
+                    },
+                    mousewheel: true,
+                },
+                type:1,
+                music:{title:'羊毛党音频',artist:' ',src:'http://qyb-bucket.oss-cn-qingdao.aliyuncs.com/test/audio/f78a1f1867e6196731233d6791d0a63f.mp3',pic:'https://shadow.elemecdn.com/app/element/hamburger.9cf7b091-55e9-11e9-a976-7f4d0b07eef6.png'},
+                customerId: -1,
+                companyName:'',
+                logoUrl:'',
+            }
+        },
+        computed: {
+            // swiper() {
+            //     return this.$refs.mySwiper.$swiper
+            // },
+            list(){
+                let obj = this.preData
+                let content = []
+                if (obj.content) {
+                    console.log("obj:",obj)
+                    content = JSON.parse(obj.content)
+                    this.type = obj.type
+                    if (this.type=="TEMPLATE_IMAGE"||this.type=="TEMPLATE_VIDEO") {
+                        content[0].name = obj.name
+                    }else if (this.type=="TEMPLATE_AUDIO") {
+                        content[0].title = obj.name
+                        content[0].src = this.$options.filters.imgPath(content[0].file, 'audio')
+                        content[0].pic = this.$options.filters.imgPath(content[0].image, 'audio')
+                        content[0].artist = ' '
+                    }
+                }
+                // if (obj.replyList){
+                //     this.replyList = obj.replyList
+                // }
+                return content
+            }
+        },
+        methods: {
+        },
+        mounted() {
+            getCustomer({customerId:this.preData.customerId}).then(rsp=>{
+                if (rsp.success){
+                    this.logoUrl = rsp.data.customerInfo.logoImg
+                    this.companyName = rsp.data.customerInfo.companyName
+                }
+            })
+        }
+    }
+</script>
+
+<style scoped lang="less">
+    .preview-resource{
+        .preview{
+            width: 300px;
+            margin: auto;
+            .mobile-header{
+                height: 60px;
+                border-radius: 15px 15px 0 0;
+                background-color: #333333;
+                text-align: center;
+                &::before{
+                    display: inline-block;
+                    width: 6px;
+                    height: 6px;
+                    margin: 27px 6px;
+                    background-color: white;
+                    border-radius: 50%;
+                    content: '';
+                }
+                &::after{
+                    display: inline-block;
+                    width: 30px;
+                    height: 6px;
+                    margin: 27px 6px;
+                    background-color: white;
+                    border-radius: 20px;
+                    content: '';
+                }
+            }
+            .mobile-main{
+                height: 440px;
+                padding: 10px 15px;
+                border: 1px solid #e1e1e1;
+                border-width: 0 1px 0 1px;
+                overflow-y: auto;
+
+                .mobile-content-height{
+                    height: 93%;
+                }
+
+                .title-m{
+                    display: flex;
+                    align-items: center;
+                    padding: 5px 0 12px 0;
+                    font-size: 14px;
+                    color: #66b1ff;
+                    img{
+                        height: 24px;
+                        margin-right: 6px;
+                    }
+
+                }
+                .item-desc{
+                    .desc{
+                        margin-top: -11px;
+                        padding: 10px 0;
+                        font-size: 14px;
+                        line-height: 20px;
+                        /*background-color: #f1f1f1;*/
+                        h3{
+                            padding: 8px 10px;
+                            font-size: 15px;
+                            color: #303133;
+                            text-align: center;
+                        }
+                        p{
+                            margin: 10px 0;
+                            padding: 0 10px;
+                            max-height: 80px;
+                            overflow-y: auto;
+                        }
+                        .button{
+                            width: 80%;
+                            margin: 5px auto 8px auto;
+                            /*line-height: 34px;*/
+                            font-size: 14px;
+                            background-color: white;
+                            border-radius: 10px;
+                            text-align: center;
+                        }
+                    }
+                }
+                .text{
+                    .desc{
+                        margin-top: 0px;
+                        h3{
+                            padding-top: 0;
+                        }
+                    }
+                }
+                .image,.video{
+                    .desc{
+                        margin-top: 0px;
+                        padding-top: 0;
+                        h3{
+                            padding-bottom: 2px;
+                        }
+                    }
+
+                }
+                .suggest{
+                    display: inline-block;
+                    padding: 0 10px;
+                    height: 20px;
+                    line-height: 20px;
+                    font-size: 12px;
+                    border-radius: 4px;
+                    margin-right: 10px;
+                    background-color: #f1f1f1;
+                }
+            }
+            .mobile-footer{
+                height: 60px;
+                border-radius: 0 0 15px 15px;
+                background-color: #333333;
+                text-align: center;
+                &::before{
+                    display: inline-block;
+                    width: 36px;
+                    height: 36px;
+                    margin-top: 12px;
+                    border: 2px solid white;
+                    border-radius: 50%;
+                    content: '';
+                }
+            }
+        }
+        .scrollbar::-webkit-scrollbar{
+            width: 1px;
+        }
+        .desc .scrollbar::-webkit-scrollbar{
+            width: 4px;
+        }
+    }
+</style>

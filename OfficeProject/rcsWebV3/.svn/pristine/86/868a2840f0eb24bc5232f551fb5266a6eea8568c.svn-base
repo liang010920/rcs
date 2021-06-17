@@ -1,0 +1,699 @@
+<template>
+    <section class="non-signature wrap-container">
+        <!-- 搜索与编辑区 -->
+        <el-form :inline="true" :model="param" size="small">
+            <el-form-item label='客户编码'>
+                <el-input v-model="param.customerNum" placeholder="请输入客户编码"></el-input>
+            </el-form-item>
+            <el-form-item label='客户名称'>
+                <el-input v-model="param.customerName" placeholder="请输入客户名称"></el-input>
+            </el-form-item>
+            <el-form-item label='联系人手机'>
+                <el-input v-model="param.contactPersonPhone" placeholder="请输入联系人手机"></el-input>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" @click="load()" icon="el-icon-search">查询</el-button>
+                <el-button type="primary" @click="addCsut()" icon="el-icon-search">新增</el-button>
+            </el-form-item>
+        </el-form>
+
+        <!-- 列表区 -->
+        <el-button @click="deleteTemp" size="mini" style="margin-bottom: 10px">删除</el-button>
+        <el-table :data="csutList" fit v-loading="tableLoading" size="small" border
+            :header-cell-style="{'background-color': '#fafafa'}" @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="55" align="center"></el-table-column>
+            <el-table-column prop="customerNum" label="客户编码" align="center"></el-table-column>
+            <el-table-column prop="customerContactPerson" label="客户名称" align="center"></el-table-column>
+            <el-table-column prop="contactPersonPhone" label="联系人手机" align="center"></el-table-column>
+            <el-table-column prop="auditTime" label="审核时间" align="center"></el-table-column>
+            <el-table-column prop="createTime" label="操作" align="center">
+                <template slot-scope="scope">
+                    <el-button type="text" size="small" @click="details(scope.row)">详情</el-button>
+                    <el-button type="text" size="small" @click="editCsut(scope.row)">编辑</el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        <!-- 页码区 -->
+        <div class="block">
+            <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange"
+                :current-page="page.current" :page-sizes="[10, 20, 50, 200, 500]" :page-size="page.size"
+                layout="total, sizes, prev, pager, next, jumper" :total="page.total">
+            </el-pagination>
+        </div>
+
+        <!-- 编辑区 -->
+        <el-dialog :title="editTitle" :visible.sync="editDialog" width="60%" :close-on-click-modal="false">
+            <el-form label-width="150px" size="small" :model="csutForm" :rules="rules" ref="csutForm">
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="客户名称" prop="customerName">
+                            <el-input v-model="csutForm.customerName" placeholder="请输入客户名称" maxlength="128"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="客户联系人" prop="customerContactPerson">
+                            <el-input v-model="csutForm.customerContactPerson" placeholder="请输入客户联系人" maxlength="128">
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="联系人手机" prop="contactPersonPhone">
+                            <el-input v-model="csutForm.contactPersonPhone" placeholder="请输入联系人手机" maxlength="128">
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="联系人邮箱" prop="contactPersonEmail">
+                            <el-input v-model="csutForm.contactPersonEmail" placeholder="请输入联系人邮箱" maxlength="128">
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="归属区域编码" prop="belongRegionCode">
+                            <el-input v-model="csutForm.belongRegionCode" placeholder="请输入归属区域编码" maxlength="128">
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="代理商名称" prop="belongAgentName">
+                            <el-input v-model="csutForm.belongAgentName" placeholder="请输入代理商名称" maxlength="128">
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="代理商编码" prop="belongAgentCode">
+                            <el-input v-model="csutForm.belongAgentCode" placeholder="请输入代理商编码" maxlength="128">
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="行业类型编码" prop="industryTypeCode">
+                            <el-input v-model="csutForm.industryTypeCode" placeholder="请输入行业类型编码" maxlength="128">
+                            </el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="版本号" prop="eTag">
+                            <el-input v-model="csutForm.eTag" placeholder="请输入版本号" maxlength="128"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="合同编号" prop="contractCode">
+                            <el-input v-model="csutForm.contractCode" placeholder="请输入合同编号" maxlength="128"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="合同名称" prop="contractName">
+                            <el-input v-model="csutForm.contractName" placeholder="请输入合同名称" maxlength="128"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="合同生效日期" prop="contractValidDate">
+                            <el-date-picker v-model="csutForm.contractValidDate" type="date" placeholder="请选择合同生效日期">
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="备注" prop="remarkText">
+                            <el-input v-model="csutForm.remarkText" placeholder="请输入备注" maxlength="128"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="合同失效日期" prop="contractInvalidDate">
+                            <el-date-picker v-model="csutForm.contractInvalidDate" type="date" placeholder="请选择合同失效日期">
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="审核意见" prop="auditOpinion">
+                            <el-input v-model="csutForm.auditOpinion" placeholder="请输入审核意见" maxlength="128"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="合同续签日期" :class="csutForm.isRenewed=='1'?'is-required':''">
+                            <el-date-picker v-model="csutForm.contractRenewDate" type="date" placeholder="请选择合同续签日期">
+                            </el-date-picker>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="附件实体文件" prop="customerUrl" class="is-required">
+                            <upload-file-base v-if="editDialog" :limit="1" :fileSize="0.1" ref="customerUrl" accept="*/*"
+                                folderType="file" :editFile="csutForm.customerUrl"></upload-file-base>
+                            <!-- <el-input v-model="csutForm.customerUrl" placeholder="请输入附件实体附件" maxlength="128"></el-input> -->
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="电子扫描件实体文件" prop="contractUrl" class="is-required">
+                            <upload-file-base v-if="editDialog" :limit="1" :fileSize="10" ref="contractUrl" accept="*/*"
+                                folderType="file" :editFile="csutForm.contractUrl"></upload-file-base>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="合同是否自动续签" prop="isRenewed" class="is-required">
+                            <el-switch v-model="csutForm.isRenewed" active-color="#13ce66" inactive-color="#ccc"
+                                active-value="1" inactive-value="0">
+                            </el-switch>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+            </el-form>
+
+            <div align="center" class="dialog-footer">
+                <el-button size="small" @click="editDialog = false">取 消</el-button>
+                <el-button size="small" type="primary" @click="save()">确 定</el-button>
+            </div>
+        </el-dialog>
+
+        <!-- 详情区 -->
+        <el-dialog title="详情" class="detailsDialog" :visible.sync="detailsDialog" width="60%" :close-on-click-modal="false">
+            <el-card class="box-card">
+                <div slot="header" class="clearfix">
+                    <span>客户信息</span>
+                </div>
+                <div class="detailsInfo">
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">客户编码</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.customerNum}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">状态</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent" v-if="detailsInfo.status==22">待管理平台新增审核</div>
+                            <div class="detailsContent" v-if="detailsInfo.status==23">待管理平台变更审核</div>
+                            <div class="detailsContent" v-if="detailsInfo.status==30">正常</div>
+                            <div class="detailsContent" v-if="detailsInfo.status==40">暂停</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">客户名称</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.customerName}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">客户联系人</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.customerContactPerson}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">联系人手机</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.contactPersonPhone}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">联系人邮箱</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.contactPersonEmail}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">归属区域编码</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.belongRegionCode}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">代理商名称</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.belongAgentName}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">代理商编码</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.belongAgentCode}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">行业类型编码</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.industryTypeCode}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">附件</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.customerUrl}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">备注</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.remarkText}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">版本号</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.auditOpinion}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">审核意见</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.eTag}}</div>
+                        </el-col>
+                    </el-row>
+                </div>
+            </el-card>
+            <el-card class="box-card">
+                <div slot="header" class="clearfix">
+                    <span>合同信息</span>
+                </div>
+                <div class="detailsInfo">
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">合同编号</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.contractCode}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">合同名称</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.contractName}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">合同生效日期</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.contractValidDate}}</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">合同失效日期</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.contractInvalidDate}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">合同是否自动续签</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent" v-if="detailsInfo.isRenewed == '1'">是</div>
+                            <div class="detailsContent" v-if="detailsInfo.isRenewed == '0'">否</div>
+                        </el-col>
+                        <el-col :span="4">
+                            <div class="detailsTitle">合同续签日期</div>
+                        </el-col>
+                        <el-col :span="8">
+                            <div class="detailsContent">{{detailsInfo.contractRenewDate}}</div>
+                        </el-col>
+                    </el-row>
+                    <el-row>
+                        <el-col :span="4">
+                            <div class="detailsTitle">合同电子扫描件附件</div>
+                        </el-col>
+                        <el-col :span="20">
+                            <div class="detailsContent">{{detailsInfo.contractUrl}}</div>
+                        </el-col>
+                    </el-row>
+                </div>
+            </el-card>
+            <span slot="footer" class="dialog-footer">
+                <el-button size="small" @click="detailsDialog = false">取 消</el-button>
+            </span>
+        </el-dialog>
+    </section>
+</template>
+
+<script>
+    import {
+        getNonSignatureCsutList,
+        addNonSignatureCsut
+    } from '../../api/api.js'
+    import UploadFileBase from '../../components/UploadFileBase'
+    export default {
+        components: {
+            UploadFileBase
+        },
+        data() {
+            return {
+                page: { //页码区
+                    current: 1,
+                    size: 10,
+                    total: 0,
+                },
+                tableLoading: false,
+                csutList: [],
+                param: {},
+                delListId: [],
+                editTitle: '',
+                editDialog: false,
+                csutForm: {},
+                rules: {
+                    customerName: [{
+                        required: true,
+                        message: '请输入客户名称',
+                        trigger: 'blur'
+                    }],
+                    customerContactPerson: [{
+                        required: true,
+                        message: '请输入客户联系人',
+                        trigger: 'blur'
+                    }],
+                    contactPersonPhone: [{
+                            required: true,
+                            message: '请输入联系人手机',
+                            trigger: 'blur'
+                        },
+                        {
+                            pattern: /^1[345789]\d{9}$/,
+                            message: '请输入正确的手机号码'
+                        }
+                    ],
+                    belongRegionCode: [{
+                        required: true,
+                        message: '请输入归属区域编码',
+                        trigger: 'blur'
+                    }],
+                    belongAgentName: [{
+                        required: true,
+                        message: '请输入代理商名称',
+                        trigger: 'blur'
+                    }],
+                    belongAgentCode: [{
+                        required: true,
+                        message: '请输入代理商编码',
+                        trigger: 'blur'
+                    }],
+                    industryTypeCode: [{
+                        required: true,
+                        message: '请输入行业类型编码',
+                        trigger: 'blur'
+                    }],
+                    contractCode: [{
+                        required: true,
+                        message: '请输入合同编号',
+                        trigger: 'blur'
+                    }],
+                    contractName: [{
+                        required: true,
+                        message: '请输入合同名称',
+                        trigger: 'blur'
+                    }],
+                    contractValidDate: [{
+                        required: true,
+                        message: '请选择合同生效日期',
+                        trigger: 'change'
+                    }],
+                    contractInvalidDate: [{
+                        required: true,
+                        message: '请选择合同失效日期',
+                        trigger: 'change'
+                    }],
+                    auditOpinion: [{
+                        required: true,
+                        message: '请输入审核意见',
+                        trigger: 'blur'
+                    }],
+                    eTag:[{
+                        required:true,
+                        message:'请输入版本号',
+                        trigger: 'blur'
+                    }]
+                },
+                detailsDialog: false,
+                detailsInfo: {}
+            }
+        },
+        methods: {
+            //详情
+            details(row) {
+                this.detailsDialog = true
+                this.detailsInfo = row
+
+                var customerUrl = JSON.parse(row.customerUrl),contractUrl = JSON.parse(row.contractUrl)
+
+                this.detailsInfo.customerUrl = customerUrl[0].name
+                this.detailsInfo.contractUrl = contractUrl[0].name
+
+            },
+            addCsut() {
+                this.editTitle = '新增'
+                this.editDialog = true
+                this.csutForm = {}
+                this.$refs.customerUrl.fileList = ''
+                this.$refs.contractUrl.fileList = ''
+            },
+            editCsut(row) {
+                this.editTitle = '编辑'
+                this.editDialog = true
+                this.csutForm = row
+                console.log(this.csutForm.isRenewed)
+            },
+            save() {
+                let t_this = this
+                this.$refs.csutForm.validate((valid) => {
+                    if (valid) {
+                        if (t_this.$refs.customerUrl.fileList.length <= 0 || t_this.$refs.contractUrl.fileList
+                            .length <= 0) {
+                            this.$message({
+                                message: '请上传文件',
+                                type: 'warning'
+                            })
+                            return
+                        }
+                        if(this.csutForm.isRenewed == '1'){
+                            if(!this.csutForm.contractRenewDate){
+                                this.$message({
+                                    message: '请选择合同续约日期',
+                                    type: 'warning'
+                                })
+                                return
+                            }
+                        }
+                        let param = {
+                            customerUrl: JSON.stringify(t_this.$refs.customerUrl.fileList),
+                            contractUrl: JSON.stringify(t_this.$refs.contractUrl.fileList)
+                        }
+
+                        Object.assign(param, this.csutForm)
+                        addNonSignatureCsut(param).then(res => {
+                            if (res.success) {
+                                if (this.csutForm.id != undefined) {
+                                    this.$message({
+                                        message: ' 编辑成功',
+                                        type: 'success'
+                                    })
+                                } else {
+                                    this.$message({
+                                        message: '添加成功',
+                                        type: 'success'
+                                    })
+                                }
+                                this.load()
+                                this.$refs.customerUrl.fileList = ''
+                                this.$refs.contractUrl.fileList = ''
+                                this.csutForm = {}
+                                this.editDialog = false
+                            }
+                        })
+                    }
+                });
+            },
+            //选择列表数据
+            handleSelectionChange(val) {
+                this.delListId = val;
+            },
+            //删除
+            deleteTemp() {
+                if (this.delListId.length > 0) {
+                    let tips = "是否确认删除？";
+                    this.$confirm(tips, '提示', {
+                        confirmButtonText: '确定',
+                        cancelButtonText: '取消',
+                        type: 'warning'
+                    }).then(() => {
+                        let delIds = this.delListId.map(val => val.id)
+                        delPageLogs({
+                            ids: delIds.join()
+                        }).then(function(res) {
+                            if (res.success) {
+                                this.$message.success("删除成功");
+                                this.load();
+                            } else {
+                                this.$message.error(res.message);
+                            }
+                        })
+                    })
+                } else {
+                    this.$message.warning('没有选择数据')
+                }
+            },
+            handleCurrentChange(currentPage) { //改变当前页
+                this.page.current = currentPage
+                this.load()
+            },
+            handleSizeChange(size) { //改变页面size
+                this.page.size = size;
+                this.load()
+            },
+            load() { //加载列表
+                this.tableLoading = true
+                Object.assign(this.param, this.page)
+                getNonSignatureCsutList(this.param).then(res => {
+                    // console.log(res)
+                    this.tableLoading = false
+                    if (res.success) {
+                        this.csutList = res.data.records;
+                        this.page.total = res.data.total
+                    } else {
+                        this.$message.error(res.message);
+                    }
+                })
+            },
+        },
+        mounted() {
+            // this.load();
+            document.getElementsByClassName('el-table__body-wrapper')[0].style.height = document.documentElement
+                .clientHeight -
+                50 - 84 - 41 - 59 - 38 - 40 - 47 + 'px'
+        },
+        activated() {
+            this.load();
+        }
+    }
+</script>
+<style lang="less">
+    .non-signature {
+        .el-table__body-wrapper {
+            overflow: auto;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+                height: 0px;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                border-radius: 10px;
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                background: rgba(0, 0, 0, 0.2);
+            }
+
+            &::-webkit-scrollbar-track {
+                -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                border-radius: 0;
+                background: rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        .detailsInfo {
+            border: 1px solid #DFE5F2;
+            .el-row{
+                border-bottom: 1px solid #DFE5F2;
+            }
+            .detailsTitle{
+                background-color: #F9FBFF;
+                padding: 15px;
+                font-weight: bold;
+                border-right: 1px solid #DFE5F2;
+            }
+            .detailsContent{
+                padding: 15px;
+                border-right: 1px solid #DFE5F2;
+            }
+        }
+
+        .detailsDialog{
+            .el-dialog{
+                margin-top: 13vh !important;
+            }
+            .el-dialog__footer{
+                text-align: center;
+            }
+            .el-dialog__body{
+                height: 600px;
+                overflow: auto;
+                &::-webkit-scrollbar {
+                    width: 4px;
+                    height: 4px;
+                }
+
+                &::-webkit-scrollbar-thumb {
+                    border-radius: 10px;
+                    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                    background: rgba(0, 0, 0, 0.2);
+                }
+
+                &::-webkit-scrollbar-track {
+                    -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+                    border-radius: 0;
+                    background: rgba(0, 0, 0, 0.1);
+                }
+            }
+        }
+
+        .el-pagination {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .el-date-editor .el-range-separator {
+            width: 10%;
+        }
+
+
+        .clearfix:before,
+        .clearfix:after {
+            display: table;
+            content: "";
+        }
+
+        .clearfix:after {
+            clear: both
+        }
+
+        .box-card {
+            width: 100%;
+            margin-bottom: 20px;
+            .el-card__header{
+                font-weight: bold;
+                background-color: #F9FBFF;
+            }
+        }
+
+    }
+</style>
